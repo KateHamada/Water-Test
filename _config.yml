@@ -23,10 +23,9 @@ email: kateh2@hawaii.edu
 description: >- # this means to ignore newlines until "baseurl:"
   Making a water dashboard so that it loads faster in comparison to Tableau also just
   to explore our options when displaying data
-baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
-twitter_username: jekyllrb
-github_username:  jekyll
+baseurl: "/Water-Test" # the subpath of your site, e.g. /blog
+url: "https://katehamada.github.io" # the base hostname & protocol for your site, e.g. http://example.com
+github_username:  katehamada
 
 # Build settings
 theme: minima
