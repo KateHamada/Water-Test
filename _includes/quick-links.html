@@ -1,0 +1,26 @@
+<style>
+  /* Floating quick links box on the right, mirroring the fiscal year box on the left. */
+  #quick-links {
+    position: fixed; top: 90px; left: calc(50% + 370px + 16px); z-index: 10;
+    background: #ffffff; color: #1f2937;
+    border: 1px solid #e3e6ea; border-radius: 6px; padding: 8px 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+  #quick-links ul { list-style: none; margin: 4px 0 0; padding: 0; }
+  #quick-links li { margin: 2px 0; }
+  @media (prefers-color-scheme: dark) {
+    #quick-links { background: #1f2329; color: #e5e7eb; border-color: #3a3f47; }
+  }
+  /* Not enough room beside the content column on narrow screens; the navbar still has the links. */
+  @media (max-width: 1100px) {
+    #quick-links { display: none; }
+  }
+</style>
+<nav id="quick-links" aria-label="Quick links">
+  <strong>Quick links</strong>
+  <ul>
+    <li><a href="{{ '/' | relative_url }}">Summary</a></li>
+    <li><a href="{{ '/Graphs/graphs.html' | relative_url }}">Graphs</a></li>
+    <li><a href="{{ '/Graphs/comparison.html' | relative_url }}">Comparison</a></li>
+  </ul>
+</nav>

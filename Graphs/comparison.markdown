@@ -1,6 +1,6 @@
 ---
 layout: page
-title:  "Graphs"
+title:  "Comparison"
 ---
 
 <style>
@@ -39,9 +39,10 @@ title:  "Graphs"
 
 <h3>Cumulative Monthly Water Usage</h3>
 <div id="fy-float">
-  <div><strong>Fiscal year</strong></div>
+  <div><strong>Fiscal years</strong></div>
   <div id="usage-fy"></div>
 </div>
+<div id="chart-msg"></div>
 <div id="usage-chart"></div>
 <details>
   <summary>Show data table</summary>
@@ -49,7 +50,7 @@ title:  "Graphs"
 </details>
 
 <h3>Monthly Water Usage by Account</h3>
-<div>Uses the fiscal year selected above. Click the box and type to search accounts.</div>
+<div>Uses the fiscal years selected above. Click the box and type to search accounts.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
 <div id="acct-msg"></div>
@@ -89,75 +90,93 @@ title:  "Graphs"
   const acctInput = document.getElementById("acct-input");
   const acctMsg = document.getElementById("acct-msg");
 
-  function currentFY() {
-    return document.querySelector('input[name="usage-fy"]:checked').value;
+  // Fiscal years currently checked, oldest first so the order is stable.
+  function selectedFYs() {
+    return [...document.querySelectorAll('input[name="usage-fy"]:checked')].map(i => i.value).sort();
   }
 
-  // Draw a single-series line chart of monthly usage into the given element.
-  function drawLine(el, vals, name) {
+  // Each fiscal year keeps its own color no matter which others are checked.
+  const PALETTE = ["#3b82c4", "#e08a2e", "#3da36b", "#9b6bc9", "#d65a7a", "#8a8f98"];
+  let allFYs = [];
+  const colorFor = fy => PALETTE[allFYs.indexOf(fy) % PALETTE.length];
+
+  // Draw one line per entry in series ([{ name, vals, color }]) into the given element.
+  function drawLines(el, series) {
     const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const ink = dark ? "#e5e7eb" : "#1f2937";
     const grid = dark ? "#3a3f47" : "#e3e6ea";
 
     // null values leave a gap in the line instead of being drawn as zero.
-    Plotly.react(el, [{
+    Plotly.react(el, series.map(s => ({
       x: MONTHS,
-      y: vals,
+      y: s.vals,
       type: "scatter",
       mode: "lines+markers",
-      name: name,
-      line: { color: dark ? "#6aa9e9" : "#2a6fb0", width: 2 },
+      name: s.name,
+      line: { color: s.color, width: 2 },
       marker: { size: 8 },
       connectgaps: false,
-      hovertemplate: "%{x}: %{y:,} thousand gal<extra></extra>"
-    }], {
+      hovertemplate: "%{y:,} thousand gal"
+    })), {
       height: 450,
       margin: { t: 20, r: 24, b: 40, l: 70 },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       font: { color: ink },
-      hovermode: "x",
+      hovermode: "x unified",
+      showlegend: series.length > 1,
+      legend: { orientation: "h", y: -0.12 },
       xaxis: { categoryorder: "array", categoryarray: MONTHS, gridcolor: grid, fixedrange: true },
       yaxis: { title: "thousand gal", rangemode: "tozero", gridcolor: grid, fixedrange: true }
     }, { responsive: true, displaylogo: false });
   }
 
-  // Chart for the account typed/selected in the search box, for the selected fiscal year.
-  function renderAccount() {
-    const fy = currentFY();
+  // Chart for the account typed/selected in the search box, one line per selected fiscal year.
+  function renderAccount(fys) {
     const typed = acctInput.value.trim().toLowerCase();
     const desc = Object.keys(byAcct).find(d => d.toLowerCase() === typed);
     Plotly.purge(acctEl);
     if (!typed) { acctMsg.textContent = "Select an account to see its usage."; return; }
     if (!desc) { acctMsg.textContent = "No account matches \"" + acctInput.value + "\"."; return; }
-    const vals = byAcct[desc][fy];
-    if (!vals) { acctMsg.textContent = desc + " has no data for " + fy.toUpperCase() + "."; return; }
+    const series = fys.filter(fy => byAcct[desc][fy])
+      .map(fy => ({ name: fy.toUpperCase(), vals: byAcct[desc][fy], color: colorFor(fy) }));
+    if (!series.length) { acctMsg.textContent = desc + " has no data for the selected fiscal years."; return; }
     acctMsg.textContent = "";
-    drawLine(acctEl, vals, desc);
+    drawLines(acctEl, series);
   }
 
   function render() {
-    const fy = currentFY();
-    const vals = data[fy];
-    drawLine(chartEl, vals, fy.toUpperCase());
-    renderAccount();
-
-    // Table view
+    const fys = selectedFYs();
     const table = document.getElementById("usage-table");
     table.replaceChildren();
-    table.insertAdjacentHTML("beforeend", "<tr><th>Month</th><th>thousand gal</th></tr>");
-    MONTHS.forEach((m, i) => {
-      table.insertAdjacentHTML("beforeend", "<tr><td>" + m + "</td><td>" + (vals[i] == null ? "–" : vals[i].toLocaleString()) + "</td></tr>");
-    });
+    const chartMsg = document.getElementById("chart-msg");
+
+    if (!fys.length) {
+      Plotly.purge(chartEl);
+      chartMsg.textContent = "Select at least one fiscal year.";
+    } else {
+      chartMsg.textContent = "";
+      drawLines(chartEl, fys.map(fy => ({ name: fy.toUpperCase(), vals: data[fy], color: colorFor(fy) })));
+
+      // Table view: one column per selected fiscal year
+      table.insertAdjacentHTML("beforeend",
+        "<tr><th>Month</th>" + fys.map(fy => "<th>" + fy.toUpperCase() + "</th>").join("") + "</tr>");
+      MONTHS.forEach((m, i) => {
+        table.insertAdjacentHTML("beforeend",
+          "<tr><td>" + m + "</td>" + fys.map(fy => "<td>" + (data[fy][i] == null ? "–" : data[fy][i].toLocaleString()) + "</td>").join("") + "</tr>");
+      });
+    }
+    renderAccount(fys);
   }
 
-  // One radio button per fiscal year found in the data, newest first.
+  // One checkbox per fiscal year found in the data, newest first. The newest two start checked.
   function buildOptions() {
     const container = document.getElementById("usage-fy");
-    Object.keys(data).sort().reverse().forEach((fy, i) => {
+    allFYs = Object.keys(data).sort();
+    allFYs.slice().reverse().forEach((fy, i) => {
       const label = document.createElement("label");
       const input = document.createElement("input");
-      input.type = "radio"; input.name = "usage-fy"; input.value = fy; input.checked = i === 0;
+      input.type = "checkbox"; input.name = "usage-fy"; input.value = fy; input.checked = i < 2;
       input.addEventListener("change", render);
       label.append(input, " " + fy.toUpperCase());
       container.append(label);
@@ -195,7 +214,7 @@ title:  "Graphs"
         opt.value = d;
         list.append(opt);
       });
-      acctInput.addEventListener("input", renderAccount);
+      acctInput.addEventListener("input", () => renderAccount(selectedFYs()));
       buildOptions();
       render();
     })

@@ -5,6 +5,8 @@
 layout: home
 ---
 
+{% include quick-links.html %}
+
 <h1>Summary for a specific fiscal year</h1>
 <div>Select a fiscal year</div>
 <div id="fy-options"></div>
@@ -30,8 +32,8 @@ layout: home
 <table id="cost-table">
   <thead><tr><th>Charges</th><th>Total</th></tr></thead>
   <tbody>
-    <tr><td>Water (adjusted)</td><td id="cost-water">–</td></tr>
-    <tr><td>Sewer (adjusted)</td><td id="cost-sewer">–</td></tr>
+    <tr><td>Water</td><td id="cost-water">–</td></tr>
+    <tr><td>Sewer</td><td id="cost-sewer">–</td></tr>
     <tr><td><strong>Water + Sewer</strong></td><td id="cost-both"><strong>–</strong></td></tr>
   </tbody>
 </table>
