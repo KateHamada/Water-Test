@@ -11,23 +11,40 @@ title:  "Graphs"
   #acct-chart { max-width: 800px; height: 450px; }
   #acct-msg { padding: 1em 0; color: #6b7280; }
   #acct-input { width: 100%; max-width: 400px; padding: 4px 8px; }
-  #usage-fy label { margin-right: 1em; }
+  /* Floating fiscal year picker that stays in the top left while scrolling. */
+  #fy-float {
+    position: fixed; top: 90px; left: 16px; z-index: 10;
+    background: #ffffff; color: #1f2937;
+    border: 1px solid #e3e6ea; border-radius: 6px; padding: 8px 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    #fy-float { background: #1f2329; color: #e5e7eb; border-color: #3a3f47; }
+  }
+  #usage-fy label { display: block; }
+  /* On narrow screens there's no room in the margin, so pin it to the top instead. */
+  @media (max-width: 1100px) {
+    #fy-float { top: 0; left: 0; right: 0; border-radius: 0; text-align: center; }
+    #usage-fy label { display: inline; margin: 0 .6em; }
+  }
   #usage-table { border-collapse: collapse; margin-top: .5em; }
   #usage-table th, #usage-table td { padding: 2px 12px; text-align: right; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
-<h3>Monthly water use by fiscal year</h3>
-<div>Select a fiscal year</div>
-<div id="usage-fy"></div>
+<h3>Monthly Water Usage by Fiscal Year</h3>
+<div id="fy-float">
+  <div><strong>Fiscal year</strong></div>
+  <div id="usage-fy"></div>
+</div>
 <div id="usage-chart"></div>
 <details>
   <summary>Show data table</summary>
   <table id="usage-table"></table>
 </details>
 
-<h3>Monthly water use by account</h3>
+<h3>Monthly Water Usage by Account</h3>
 <div>Uses the fiscal year selected above. Click the box and type to search accounts.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
