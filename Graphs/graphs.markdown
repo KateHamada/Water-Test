@@ -11,9 +11,11 @@ title:  "Graphs"
   #acct-chart { max-width: 800px; height: 450px; }
   #acct-msg { padding: 1em 0; color: #6b7280; }
   #acct-input { width: 100%; max-width: 400px; padding: 4px 8px; }
-  /* Floating fiscal year picker that stays in the top left while scrolling. */
+  /* Floating fiscal year picker that stays beside the charts while scrolling.
+     The theme's content column is 740px wide and centered, so anchor the box's
+     right edge 16px left of that column instead of the screen edge. */
   #fy-float {
-    position: fixed; top: 90px; left: 16px; z-index: 10;
+    position: fixed; top: 90px; right: calc(50% + 370px + 16px); z-index: 10;
     background: #ffffff; color: #1f2937;
     border: 1px solid #e3e6ea; border-radius: 6px; padding: 8px 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
@@ -33,7 +35,7 @@ title:  "Graphs"
 
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
-<h3>Monthly Water Usage by Fiscal Year</h3>
+<h3>Cumulative Monthly Water Usage</h3>
 <div id="fy-float">
   <div><strong>Fiscal year</strong></div>
   <div id="usage-fy"></div>
