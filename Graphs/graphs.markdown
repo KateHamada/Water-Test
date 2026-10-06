@@ -4,46 +4,20 @@ title:  "Graphs"
 ---
 
 <style>
-  :root {
-    --chart-line: #2a6fb0;
-    --chart-grid: #e3e6ea;
-    --chart-axis: #6b7280;
-    --chart-surface: #ffffff;
-    --chart-ink: #1f2937;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --chart-line: #6aa9e9;
-      --chart-grid: #3a3f47;
-      --chart-axis: #9aa3af;
-      --chart-surface: #1f2329;
-      --chart-ink: #e5e7eb;
-    }
-  }
-  #usage-chart { position: relative; max-width: 800px; }
-  #usage-chart svg { width: 100%; height: auto; display: block; }
-  #usage-chart .grid { stroke: var(--chart-grid); stroke-width: 1; }
-  #usage-chart .tick { fill: var(--chart-axis); font-size: 12px; }
-  #usage-chart .line { fill: none; stroke: var(--chart-line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-  #usage-chart .dot { fill: var(--chart-line); stroke: var(--chart-surface); stroke-width: 2; }
-  #usage-chart .cross { stroke: var(--chart-axis); stroke-width: 1; stroke-dasharray: 3 3; }
-  #usage-tip {
-    position: absolute; pointer-events: none; display: none; white-space: nowrap;
-    background: var(--chart-surface); color: var(--chart-ink);
-    border: 1px solid var(--chart-grid); border-radius: 4px; padding: 4px 8px; font-size: 13px;
-  }
+  /* Hide the page title heading; page.title is still used by the navbar. */
+  .post-header { display: none; }
+  #usage-chart { max-width: 800px; }
   #usage-fy label { margin-right: 1em; }
   #usage-table { border-collapse: collapse; margin-top: .5em; }
   #usage-table th, #usage-table td { padding: 2px 12px; text-align: right; }
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+
 <h3>Monthly water use by fiscal year</h3>
 <div>Select a fiscal year</div>
 <div id="usage-fy"></div>
-<div id="usage-chart">
-  <svg id="usage-svg" viewBox="0 0 800 400" role="img" aria-label="Line chart of monthly water use in thousands of gallons"></svg>
-  <div id="usage-tip"></div>
-</div>
+<div id="usage-chart"></div>
 <details>
   <summary>Show data table</summary>
   <table id="usage-table"></table>
@@ -77,81 +51,35 @@ title:  "Graphs"
   }
 
   const data = {}; // data[fy][monthPosition] = summed thousands_gal
-  const svg = document.getElementById("usage-svg");
-  const tip = document.getElementById("usage-tip");
-  const W = 800, H = 400, M = { top: 20, right: 24, bottom: 36, left: 64 };
-  const NS = "http://www.w3.org/2000/svg";
-
-  function el(name, attrs, text) {
-    const e = document.createElementNS(NS, name);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    if (text !== undefined) e.textContent = text;
-    return e;
-  }
-
-  // Round the axis max up to a "nice" number.
-  function niceMax(v) {
-    if (v <= 0) return 1;
-    const p = Math.pow(10, Math.floor(Math.log10(v)));
-    const f = v / p;
-    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
-  }
-
-  function currentFY() {
-    return document.querySelector('input[name="usage-fy"]:checked').value;
-  }
+  const chartEl = document.getElementById("usage-chart");
 
   function render() {
-    const fy = currentFY();
+    const fy = document.querySelector('input[name="usage-fy"]:checked').value;
     const vals = data[fy];
-    svg.replaceChildren();
-    tip.style.display = "none";
+    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const ink = dark ? "#e5e7eb" : "#1f2937";
+    const grid = dark ? "#3a3f47" : "#e3e6ea";
 
-    const max = niceMax(Math.max(...vals.filter(v => v != null)));
-    const x = i => M.left + (i * (W - M.left - M.right)) / 11;
-    const y = v => H - M.bottom - (v / max) * (H - M.top - M.bottom);
-
-    // Grid + y-axis labels
-    for (let t = 0; t <= 4; t++) {
-      const v = (max * t) / 4;
-      svg.append(el("line", { class: "grid", x1: M.left, x2: W - M.right, y1: y(v), y2: y(v) }));
-      svg.append(el("text", { class: "tick", x: M.left - 8, y: y(v) + 4, "text-anchor": "end" }, v.toLocaleString()));
-    }
-    svg.append(el("text", { class: "tick", x: 12, y: M.top - 6 }, "thousand gal"));
-
-    // X-axis labels
-    MONTHS.forEach((m, i) => {
-      svg.append(el("text", { class: "tick", x: x(i), y: H - 12, "text-anchor": "middle" }, m));
-    });
-
-    // Line: break at months with no data rather than drawing them as zero.
-    let d = "", pen = false;
-    vals.forEach((v, i) => {
-      if (v == null) { pen = false; return; }
-      d += (pen ? "L" : "M") + x(i) + " " + y(v);
-      pen = true;
-    });
-    svg.append(el("path", { class: "line", d }));
-    vals.forEach((v, i) => {
-      if (v != null) svg.append(el("circle", { class: "dot", cx: x(i), cy: y(v), r: 4 }));
-    });
-
-    // Hover layer: crosshair + tooltip on the nearest month.
-    const cross = el("line", { class: "cross", y1: M.top, y2: H - M.bottom, style: "display:none" });
-    svg.append(cross);
-    const hit = el("rect", { x: M.left, y: M.top, width: W - M.left - M.right, height: H - M.top - M.bottom, fill: "transparent" });
-    svg.append(hit);
-    hit.addEventListener("mousemove", ev => {
-      const box = svg.getBoundingClientRect();
-      const px = ((ev.clientX - box.left) / box.width) * W;
-      const i = Math.max(0, Math.min(11, Math.round(((px - M.left) / (W - M.left - M.right)) * 11)));
-      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.style.display = "";
-      tip.textContent = MONTHS[i] + ": " + (vals[i] == null ? "no data" : vals[i].toLocaleString() + " thousand gal");
-      tip.style.display = "block";
-      tip.style.left = Math.min((x(i) / W) * box.width + 12, box.width - tip.offsetWidth) + "px";
-      tip.style.top = "8px";
-    });
-    hit.addEventListener("mouseleave", () => { cross.style.display = "none"; tip.style.display = "none"; });
+    // null values leave a gap in the line instead of being drawn as zero.
+    Plotly.react(chartEl, [{
+      x: MONTHS,
+      y: vals,
+      type: "scatter",
+      mode: "lines+markers",
+      name: fy.toUpperCase(),
+      line: { color: dark ? "#6aa9e9" : "#2a6fb0", width: 2 },
+      marker: { size: 8 },
+      connectgaps: false,
+      hovertemplate: "%{x}: %{y:,} thousand gal<extra></extra>"
+    }], {
+      margin: { t: 20, r: 24, b: 40, l: 70 },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      font: { color: ink },
+      hovermode: "x",
+      xaxis: { categoryorder: "array", categoryarray: MONTHS, gridcolor: grid, fixedrange: true },
+      yaxis: { title: "thousand gal", rangemode: "tozero", gridcolor: grid, fixedrange: true }
+    }, { responsive: true, displaylogo: false });
 
     // Table view
     const table = document.getElementById("usage-table");
@@ -195,5 +123,5 @@ title:  "Graphs"
       buildOptions();
       render();
     })
-    .catch(() => { svg.replaceChildren(el("text", { x: 20, y: 40, class: "tick" }, "Failed to load data")); });
+    .catch(() => { chartEl.textContent = "Failed to load data"; });
 </script>
