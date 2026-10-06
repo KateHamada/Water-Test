@@ -5,13 +5,9 @@
 layout: home
 ---
 
-<h3>Select a fiscal year</h3>
-<div id="fy-options">
-  <label><input type="radio" name="fy" value="fy26" checked> FY26</label>
-  <label><input type="radio" name="fy" value="fy25"> FY25</label>
-  <label><input type="radio" name="fy" value="fy24"> FY24</label>
-  <label><input type="radio" name="fy" value="fy23"> FY23</label>
-</div>
+<h1>Summary for a specific fiscal year</h1>
+<div>Select a fiscal year</div>
+<div id="fy-options"></div>
 <p>Total water use: <strong id="fy-total">Loading...</strong></p>
 
 <script>
@@ -43,7 +39,27 @@ layout: home
   function render() {
     const fy = document.querySelector('input[name="fy"]:checked').value;
     const sum = totals[fy] || 0;
-    totalEl.textContent = sum.toLocaleString() + " thousand gallons";
+    totalEl.textContent = sum.toLocaleString() + " kgals";
+  }
+
+  // Build one radio button per fiscal year found in the data, newest first.
+  // So that you don't have to keep updating the hardcoded options and will
+  // auto adjust based off of the data
+  function buildOptions() {
+    const container = document.getElementById("fy-options");
+    const years = Object.keys(totals).sort().reverse();
+    years.forEach((fy, i) => {
+      const label = document.createElement("label");
+      label.style.marginRight = "1em";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "fy";
+      input.value = fy;
+      input.checked = i === 0;
+      input.addEventListener("change", render);
+      label.append(input, " " + fy.toUpperCase());
+      container.append(label);
+    });
   }
 
   fetch("{{ '/water_view.csv' | relative_url }}")
@@ -59,9 +75,8 @@ layout: home
         if (!fy || isNaN(gal)) continue;
         totals[fy] = (totals[fy] || 0) + gal;
       }
+      buildOptions();
       render();
     })
     .catch(() => { totalEl.textContent = "Failed to load data"; });
-
-  document.querySelectorAll('input[name="fy"]').forEach(el => el.addEventListener("change", render));
 </script>
