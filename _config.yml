@@ -26,6 +26,9 @@ url: "https://katehamada.github.io" # the base hostname & protocol for your site
 
 # Build settings
 theme: minima
+# Pages listed in the navbar. Graphs and Comparison are only linked from the quick links box.
+header_pages:
+  - about.markdown
 plugins:
   - jekyll-feed
 

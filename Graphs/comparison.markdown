@@ -11,6 +11,11 @@ title:  "Comparison"
   #acct-chart { max-width: 800px; height: 450px; }
   #acct-msg { padding: 1em 0; color: #6b7280; }
   #acct-input { width: 100%; max-width: 400px; padding: 4px 8px; }
+  #acct-chips { margin-top: .5em; }
+  #acct-chips .chip {
+    margin: 0 .5em .5em 0; padding: 2px 10px; cursor: pointer;
+    background: transparent; color: inherit; border: 2px solid; border-radius: 999px; font: inherit;
+  }
   /* Floating fiscal year picker that stays beside the charts while scrolling.
      The theme's content column is 740px wide and centered, so anchor the box's
      right edge 16px left of that column instead of the screen edge. */
@@ -50,9 +55,10 @@ title:  "Comparison"
 </details>
 
 <h3>Monthly Water Usage by Account</h3>
-<div>Uses the fiscal years selected above. Click the box and type to search accounts.</div>
+<div>Uses the fiscal years selected above. Type to search, then pick an account to add it. Add several to compare them.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
+<div id="acct-chips"></div>
 <div id="acct-msg"></div>
 <div id="acct-chart"></div>
 
@@ -113,7 +119,7 @@ title:  "Comparison"
       type: "scatter",
       mode: "lines+markers",
       name: s.name,
-      line: { color: s.color, width: 2 },
+      line: { color: s.color, width: 2, dash: s.dash || "solid" },
       marker: { size: 8 },
       connectgaps: false,
       hovertemplate: "%{y:,} thousand gal"
@@ -131,18 +137,67 @@ title:  "Comparison"
     }, { responsive: true, displaylogo: false });
   }
 
-  // Chart for the account typed/selected in the search box, one line per selected fiscal year.
+  // Accounts picked in the search box. Each keeps its color while it stays on the chart.
+  const chosen = [];
+  const acctColor = {};
+  const DASHES = ["solid", "dash", "dot", "dashdot", "longdash", "longdashdot"];
+  const acctChips = document.getElementById("acct-chips");
+
+  function renderChips() {
+    acctChips.replaceChildren();
+    chosen.forEach(desc => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.style.borderColor = acctColor[desc];
+      b.title = "Remove";
+      b.textContent = desc + " ×";
+      b.addEventListener("click", () => {
+        chosen.splice(chosen.indexOf(desc), 1);
+        renderChips();
+        renderAccount(selectedFYs());
+      });
+      acctChips.append(b);
+    });
+  }
+
+  // One line per chosen account and selected fiscal year.
+  // One account: lines are colored by fiscal year. Several: colored by account, dashed by fiscal year.
   function renderAccount(fys) {
-    const typed = acctInput.value.trim().toLowerCase();
-    const desc = Object.keys(byAcct).find(d => d.toLowerCase() === typed);
     Plotly.purge(acctEl);
-    if (!typed) { acctMsg.textContent = "Select an account to see its usage."; return; }
-    if (!desc) { acctMsg.textContent = "No account matches \"" + acctInput.value + "\"."; return; }
-    const series = fys.filter(fy => byAcct[desc][fy])
-      .map(fy => ({ name: fy.toUpperCase(), vals: byAcct[desc][fy], color: colorFor(fy) }));
-    if (!series.length) { acctMsg.textContent = desc + " has no data for the selected fiscal years."; return; }
+    if (!chosen.length) { acctMsg.textContent = "Search for an account and pick it to add it to the chart."; return; }
+    const single = chosen.length === 1;
+    const series = [];
+    chosen.forEach(desc => fys.forEach(fy => {
+      const vals = byAcct[desc][fy];
+      if (!vals) return;
+      series.push({
+        name: single ? fy.toUpperCase() : fys.length === 1 ? desc : desc + " · " + fy.toUpperCase(),
+        vals,
+        color: single ? colorFor(fy) : acctColor[desc],
+        dash: !single && fys.length > 1 ? DASHES[allFYs.indexOf(fy) % DASHES.length] : "solid"
+      });
+    }));
+    if (!series.length) { acctMsg.textContent = "The chosen accounts have no data for the selected fiscal years."; return; }
     acctMsg.textContent = "";
     drawLines(acctEl, series);
+  }
+
+  // Add the account typed/picked in the search box (fires on picking from the list, Enter, or leaving the box).
+  function addAccount() {
+    const typed = acctInput.value.trim().toLowerCase();
+    if (!typed) return;
+    const desc = Object.keys(byAcct).find(d => d.toLowerCase() === typed);
+    if (!desc) { acctMsg.textContent = "No account matches \"" + acctInput.value + "\"."; return; }
+    if (!chosen.includes(desc)) {
+      const color = PALETTE.find(c => !chosen.some(d => acctColor[d] === c));
+      if (!color) { acctMsg.textContent = "You can compare up to " + PALETTE.length + " accounts. Remove one to add another."; return; }
+      acctColor[desc] = color;
+      chosen.push(desc);
+    }
+    acctInput.value = "";
+    renderChips();
+    renderAccount(selectedFYs());
   }
 
   function render() {
@@ -214,7 +269,7 @@ title:  "Comparison"
         opt.value = d;
         list.append(opt);
       });
-      acctInput.addEventListener("input", () => renderAccount(selectedFYs()));
+      acctInput.addEventListener("change", addAccount);
       buildOptions();
       render();
     })
