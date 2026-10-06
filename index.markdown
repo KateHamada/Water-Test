@@ -8,7 +8,24 @@ layout: home
 <h1>Summary for a specific fiscal year</h1>
 <div>Select a fiscal year</div>
 <div id="fy-options"></div>
-<p>Total water use: <strong id="fy-total">Loading...</strong></p>
+<style>
+  .stat-box {
+    display: inline-block; margin: 1em 0; padding: 12px 20px;
+    background: #eef4fb; border: 1px solid #c5d9ee; border-left: 5px solid #2a6fb0;
+    border-radius: 6px;
+  }
+  .stat-box .stat-label { font-size: 0.85em; color: #4b5563; }
+  .stat-box .stat-value { font-size: 1.6em; font-weight: bold; color: #1f2937; }
+  @media (prefers-color-scheme: dark) {
+    .stat-box { background: #1f2a38; border-color: #34475e; border-left-color: #6aa9e9; }
+    .stat-box .stat-label { color: #9aa3af; }
+    .stat-box .stat-value { color: #e5e7eb; }
+  }
+</style>
+<div class="stat-box">
+  <div class="stat-label">Total Water Usage</div>
+  <div class="stat-value" id="fy-total">Loading...</div>
+</div>
 
 <table id="cost-table">
   <thead><tr><th>Charges</th><th>Total</th></tr></thead>
@@ -17,6 +34,12 @@ layout: home
     <tr><td>Sewer (adjusted)</td><td id="cost-sewer">–</td></tr>
     <tr><td><strong>Water + Sewer</strong></td><td id="cost-both"><strong>–</strong></td></tr>
   </tbody>
+</table>
+
+<h3>Top 10 customers by water + sewer charges</h3>
+<table id="top-table">
+  <thead><tr><th>#</th><th>Account</th><th>Water (adjusted)</th><th>Sewer (adjusted)</th><th>Total</th></tr></thead>
+  <tbody></tbody>
 </table>
 
 <script>
@@ -44,6 +67,7 @@ layout: home
 
   const totals = {};
   const costs = {}; // costs[fy] = { water, sewer } summed from the adjusted columns
+  const byAcct = {}; // byAcct[fy][description] = { water, sewer }
   const totalEl = document.getElementById("fy-total");
   const money = v => v.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
@@ -59,6 +83,23 @@ layout: home
     document.getElementById("cost-water").textContent = money(c.water);
     document.getElementById("cost-sewer").textContent = money(c.sewer);
     document.getElementById("cost-both").innerHTML = "<strong>" + money(c.water + c.sewer) + "</strong>";
+
+    // Top 10 accounts (by description) for the selected year, highest combined charges first.
+    const top = Object.entries(byAcct[fy] || {})
+      .map(([desc, v]) => ({ desc, water: v.water, sewer: v.sewer, total: v.water + v.sewer }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+    const body = document.querySelector("#top-table tbody");
+    body.replaceChildren();
+    top.forEach((t, i) => {
+      const tr = document.createElement("tr");
+      [i + 1, t.desc, money(t.water), money(t.sewer), money(t.total)].forEach(val => {
+        const td = document.createElement("td");
+        td.textContent = val;
+        tr.append(td);
+      });
+      body.append(tr);
+    });
   }
 
   // Build one radio button per fiscal year found in the data, newest first.
@@ -88,6 +129,7 @@ layout: home
       const header = rows[0];
       const gi = header.indexOf("thousands_gal");
       const fi = header.indexOf("fiscal_year");
+      const di = header.indexOf("description");
       const wi = header.indexOf("water_charges_adjusted");
       const si = header.indexOf("sewer_charges_adjusted");
       for (const r of rows.slice(1)) {
@@ -96,6 +138,13 @@ layout: home
         costs[fy] = costs[fy] || { water: 0, sewer: 0 };
         costs[fy].water += parseMoney(r[wi]);
         costs[fy].sewer += parseMoney(r[si]);
+        const desc = (r[di] || "").trim();
+        if (desc) {
+          byAcct[fy] = byAcct[fy] || {};
+          const a = byAcct[fy][desc] = byAcct[fy][desc] || { water: 0, sewer: 0 };
+          a.water += parseMoney(r[wi]);
+          a.sewer += parseMoney(r[si]);
+        }
         const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
         if (isNaN(gal)) continue;
         totals[fy] = (totals[fy] || 0) + gal;
