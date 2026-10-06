@@ -10,6 +10,15 @@ layout: home
 <div id="fy-options"></div>
 <p>Total water use: <strong id="fy-total">Loading...</strong></p>
 
+<table id="cost-table">
+  <thead><tr><th>Charges</th><th>Total</th></tr></thead>
+  <tbody>
+    <tr><td>Water (adjusted)</td><td id="cost-water">–</td></tr>
+    <tr><td>Sewer (adjusted)</td><td id="cost-sewer">–</td></tr>
+    <tr><td><strong>Water + Sewer</strong></td><td id="cost-both"><strong>–</strong></td></tr>
+  </tbody>
+</table>
+
 <script>
   // Minimal CSV parser that handles quoted fields containing commas.
   function parseCSV(text) {
@@ -34,12 +43,22 @@ layout: home
   }
 
   const totals = {};
+  const costs = {}; // costs[fy] = { water, sewer } summed from the adjusted columns
   const totalEl = document.getElementById("fy-total");
+  const money = v => v.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+  // "$1,234.56" -> 1234.56, "-$2.00" -> -2, blank -> 0
+  const parseMoney = s => parseFloat((s || "").replace(/[$,]/g, "")) || 0;
 
   function render() {
     const fy = document.querySelector('input[name="fy"]:checked').value;
     const sum = totals[fy] || 0;
     totalEl.textContent = sum.toLocaleString() + " kgals";
+
+    const c = costs[fy] || { water: 0, sewer: 0 };
+    document.getElementById("cost-water").textContent = money(c.water);
+    document.getElementById("cost-sewer").textContent = money(c.sewer);
+    document.getElementById("cost-both").innerHTML = "<strong>" + money(c.water + c.sewer) + "</strong>";
   }
 
   // Build one radio button per fiscal year found in the data, newest first.
@@ -69,10 +88,16 @@ layout: home
       const header = rows[0];
       const gi = header.indexOf("thousands_gal");
       const fi = header.indexOf("fiscal_year");
+      const wi = header.indexOf("water_charges_adjusted");
+      const si = header.indexOf("sewer_charges_adjusted");
       for (const r of rows.slice(1)) {
         const fy = (r[fi] || "").trim().toLowerCase();
+        if (!fy) continue;
+        costs[fy] = costs[fy] || { water: 0, sewer: 0 };
+        costs[fy].water += parseMoney(r[wi]);
+        costs[fy].sewer += parseMoney(r[si]);
         const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
-        if (!fy || isNaN(gal)) continue;
+        if (isNaN(gal)) continue;
         totals[fy] = (totals[fy] || 0) + gal;
       }
       buildOptions();
