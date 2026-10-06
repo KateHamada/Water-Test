@@ -1,0 +1,199 @@
+---
+layout: page
+title:  "Graphs"
+---
+
+<style>
+  :root {
+    --chart-line: #2a6fb0;
+    --chart-grid: #e3e6ea;
+    --chart-axis: #6b7280;
+    --chart-surface: #ffffff;
+    --chart-ink: #1f2937;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --chart-line: #6aa9e9;
+      --chart-grid: #3a3f47;
+      --chart-axis: #9aa3af;
+      --chart-surface: #1f2329;
+      --chart-ink: #e5e7eb;
+    }
+  }
+  #usage-chart { position: relative; max-width: 800px; }
+  #usage-chart svg { width: 100%; height: auto; display: block; }
+  #usage-chart .grid { stroke: var(--chart-grid); stroke-width: 1; }
+  #usage-chart .tick { fill: var(--chart-axis); font-size: 12px; }
+  #usage-chart .line { fill: none; stroke: var(--chart-line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  #usage-chart .dot { fill: var(--chart-line); stroke: var(--chart-surface); stroke-width: 2; }
+  #usage-chart .cross { stroke: var(--chart-axis); stroke-width: 1; stroke-dasharray: 3 3; }
+  #usage-tip {
+    position: absolute; pointer-events: none; display: none; white-space: nowrap;
+    background: var(--chart-surface); color: var(--chart-ink);
+    border: 1px solid var(--chart-grid); border-radius: 4px; padding: 4px 8px; font-size: 13px;
+  }
+  #usage-fy label { margin-right: 1em; }
+  #usage-table { border-collapse: collapse; margin-top: .5em; }
+  #usage-table th, #usage-table td { padding: 2px 12px; text-align: right; }
+</style>
+
+<h3>Monthly water use by fiscal year</h3>
+<div>Select a fiscal year</div>
+<div id="usage-fy"></div>
+<div id="usage-chart">
+  <svg id="usage-svg" viewBox="0 0 800 400" role="img" aria-label="Line chart of monthly water use in thousands of gallons"></svg>
+  <div id="usage-tip"></div>
+</div>
+<details>
+  <summary>Show data table</summary>
+  <table id="usage-table"></table>
+</details>
+
+<script>
+  // Fiscal year runs July -> June.
+  const MONTHS = ["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"];
+  const monthIndex = m => (m + 5) % 12; // calendar month (1-12) -> position in fiscal year (0-11)
+
+  // Minimal CSV parser that handles quoted fields containing commas.
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') inQuotes = false;
+        else field += c;
+      } else if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); field = "";
+        rows.push(row); row = [];
+      } else field += c;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  const data = {}; // data[fy][monthPosition] = summed thousands_gal
+  const svg = document.getElementById("usage-svg");
+  const tip = document.getElementById("usage-tip");
+  const W = 800, H = 400, M = { top: 20, right: 24, bottom: 36, left: 64 };
+  const NS = "http://www.w3.org/2000/svg";
+
+  function el(name, attrs, text) {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // Round the axis max up to a "nice" number.
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    const f = v / p;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+  }
+
+  function currentFY() {
+    return document.querySelector('input[name="usage-fy"]:checked').value;
+  }
+
+  function render() {
+    const fy = currentFY();
+    const vals = data[fy];
+    svg.replaceChildren();
+    tip.style.display = "none";
+
+    const max = niceMax(Math.max(...vals.filter(v => v != null)));
+    const x = i => M.left + (i * (W - M.left - M.right)) / 11;
+    const y = v => H - M.bottom - (v / max) * (H - M.top - M.bottom);
+
+    // Grid + y-axis labels
+    for (let t = 0; t <= 4; t++) {
+      const v = (max * t) / 4;
+      svg.append(el("line", { class: "grid", x1: M.left, x2: W - M.right, y1: y(v), y2: y(v) }));
+      svg.append(el("text", { class: "tick", x: M.left - 8, y: y(v) + 4, "text-anchor": "end" }, v.toLocaleString()));
+    }
+    svg.append(el("text", { class: "tick", x: 12, y: M.top - 6 }, "thousand gal"));
+
+    // X-axis labels
+    MONTHS.forEach((m, i) => {
+      svg.append(el("text", { class: "tick", x: x(i), y: H - 12, "text-anchor": "middle" }, m));
+    });
+
+    // Line: break at months with no data rather than drawing them as zero.
+    let d = "", pen = false;
+    vals.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      d += (pen ? "L" : "M") + x(i) + " " + y(v);
+      pen = true;
+    });
+    svg.append(el("path", { class: "line", d }));
+    vals.forEach((v, i) => {
+      if (v != null) svg.append(el("circle", { class: "dot", cx: x(i), cy: y(v), r: 4 }));
+    });
+
+    // Hover layer: crosshair + tooltip on the nearest month.
+    const cross = el("line", { class: "cross", y1: M.top, y2: H - M.bottom, style: "display:none" });
+    svg.append(cross);
+    const hit = el("rect", { x: M.left, y: M.top, width: W - M.left - M.right, height: H - M.top - M.bottom, fill: "transparent" });
+    svg.append(hit);
+    hit.addEventListener("mousemove", ev => {
+      const box = svg.getBoundingClientRect();
+      const px = ((ev.clientX - box.left) / box.width) * W;
+      const i = Math.max(0, Math.min(11, Math.round(((px - M.left) / (W - M.left - M.right)) * 11)));
+      cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.style.display = "";
+      tip.textContent = MONTHS[i] + ": " + (vals[i] == null ? "no data" : vals[i].toLocaleString() + " thousand gal");
+      tip.style.display = "block";
+      tip.style.left = Math.min((x(i) / W) * box.width + 12, box.width - tip.offsetWidth) + "px";
+      tip.style.top = "8px";
+    });
+    hit.addEventListener("mouseleave", () => { cross.style.display = "none"; tip.style.display = "none"; });
+
+    // Table view
+    const table = document.getElementById("usage-table");
+    table.replaceChildren();
+    table.insertAdjacentHTML("beforeend", "<tr><th>Month</th><th>thousand gal</th></tr>");
+    MONTHS.forEach((m, i) => {
+      table.insertAdjacentHTML("beforeend", "<tr><td>" + m + "</td><td>" + (vals[i] == null ? "–" : vals[i].toLocaleString()) + "</td></tr>");
+    });
+  }
+
+  // One radio button per fiscal year found in the data, newest first.
+  function buildOptions() {
+    const container = document.getElementById("usage-fy");
+    Object.keys(data).sort().reverse().forEach((fy, i) => {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "radio"; input.name = "usage-fy"; input.value = fy; input.checked = i === 0;
+      input.addEventListener("change", render);
+      label.append(input, " " + fy.toUpperCase());
+      container.append(label);
+    });
+  }
+
+  fetch("{{ '/water_view.csv' | relative_url }}")
+    .then(r => r.text())
+    .then(text => {
+      const rows = parseCSV(text);
+      const header = rows[0];
+      const gi = header.indexOf("thousands_gal");
+      const fi = header.indexOf("fiscal_year");
+      const di = header.indexOf("date");
+      for (const r of rows.slice(1)) {
+        const fy = (r[fi] || "").trim().toLowerCase();
+        const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
+        const month = parseInt((r[di] || "").split("-")[1], 10); // dates look like 2022-7-18
+        if (!fy || isNaN(gal) || isNaN(month)) continue;
+        data[fy] = data[fy] || new Array(12).fill(null);
+        const pos = monthIndex(month);
+        data[fy][pos] = (data[fy][pos] || 0) + gal;
+      }
+      buildOptions();
+      render();
+    })
+    .catch(() => { svg.replaceChildren(el("text", { x: 20, y: 40, class: "tick" }, "Failed to load data")); });
+</script>
