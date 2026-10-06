@@ -123,5 +123,8 @@ title:  "Graphs"
       buildOptions();
       render();
     })
-    .catch(() => { chartEl.textContent = "Failed to load data"; });
+    .catch(err => {
+      console.error(err);
+      chartEl.textContent = "Failed to load chart: " + err.message;
+    });
 </script>
