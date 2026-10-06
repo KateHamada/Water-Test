@@ -12,7 +12,7 @@ title:  "Graphs"
   #usage-table th, #usage-table td { padding: 2px 12px; text-align: right; }
 </style>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
 <h3>Monthly water use by fiscal year</h3>
 <div>Select a fiscal year</div>
