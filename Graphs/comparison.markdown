@@ -148,6 +148,7 @@ title:  "Comparison"
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       font: { color: ink },
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "#d1d5db", font: { color: "#1f2937" } },
       hovermode: "x unified",
       showlegend: series.length > 1,
       legend: { orientation: "h", y: -0.12 },

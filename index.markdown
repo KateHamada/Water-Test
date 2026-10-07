@@ -33,7 +33,7 @@ layout: home
   </tbody>
 </table>
 
-<h3>Top 10 customers by water + sewer charges</h3>
+<h2>Top 10 customers by water + sewer charges</h2>
 <table id="top-table">
   <thead><tr><th>#</th><th>Account</th><th>Usage (kgals)</th><th>Water</th><th>Sewer</th><th>Total</th></tr></thead>
   <tbody></tbody>
