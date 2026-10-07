@@ -44,7 +44,7 @@ title:  "Comparison"
 
 {% include quick-links.html %}
 
-<h3>Cumulative Monthly Water Usage</h3>
+<h3 id="usage-heading">Monthly Water Usage For All Accounts</h3>
 <div id="fy-float">
   <button id="fy-toggle" type="button" aria-expanded="false" aria-controls="usage-fy">Select FY</button>
   <div id="fy-title"><strong>Fiscal years</strong></div>
