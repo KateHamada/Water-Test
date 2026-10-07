@@ -34,8 +34,10 @@ title:  "Comparison"
     #fy-title, #usage-fy { display: none; }
     #fy-float.is-open #usage-fy { display: block; padding: 0 12px 8px; }
   }
-  #usage-table { border-collapse: collapse; margin-top: .5em; }
-  #usage-table th, #usage-table td { padding: 2px 12px; text-align: right; }
+  #usage-table, #acct-usage-table { border-collapse: collapse; margin-top: .5em; }
+  #usage-table th, #usage-table td, #acct-usage-table th, #acct-usage-table td {
+    padding: 2px 12px; text-align: right;
+  }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
@@ -73,6 +75,10 @@ title:  "Comparison"
 <h4 id="acct-title" hidden></h4>
 <div id="acct-msg"></div>
 <div id="acct-chart"></div>
+<details>
+  <summary>Show data table</summary>
+  <table id="acct-usage-table"></table>
+</details>
 
 <script>
   // Fiscal year runs July -> June.
@@ -153,10 +159,12 @@ title:  "Comparison"
   // The single account selected for the monthly usage chart.
   const chosen = [];
   const acctTitle = document.getElementById("acct-title");
+  const acctUsageTable = document.getElementById("acct-usage-table");
 
   // One line per selected fiscal year for the chosen account.
   function renderAccount(fys) {
     Plotly.purge(acctEl);
+    acctUsageTable.replaceChildren();
     if (!chosen.length) { acctMsg.textContent = "Search for an account and pick it to view its usage."; return; }
     const desc = chosen[0];
     const series = [];
@@ -172,6 +180,26 @@ title:  "Comparison"
     if (!series.length) { acctMsg.textContent = "The chosen account has no data for the selected fiscal years."; return; }
     acctMsg.textContent = "";
     drawLines(acctEl, series);
+
+    const header = document.createElement("tr");
+    ["Month", ...series.map(s => s.name + " (thousand gal)")].forEach(value => {
+      const th = document.createElement("th");
+      th.textContent = value;
+      header.append(th);
+    });
+    acctUsageTable.append(header);
+    MONTHS.forEach((month, i) => {
+      const row = document.createElement("tr");
+      const monthCell = document.createElement("td");
+      monthCell.textContent = month;
+      row.append(monthCell);
+      series.forEach(s => {
+        const cell = document.createElement("td");
+        cell.textContent = s.vals[i] == null ? "–" : s.vals[i].toLocaleString();
+        row.append(cell);
+      });
+      acctUsageTable.append(row);
+    });
   }
 
   // Add the account typed/picked in the search box (fires on picking from the list, Enter, or leaving the box).

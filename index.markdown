@@ -74,7 +74,7 @@ layout: home
   function render() {
     const fy = document.querySelector('input[name="fy"]:checked').value;
     const sum = totals[fy] || 0;
-    totalEl.textContent = sum.toLocaleString() + " kgals";
+    totalEl.textContent = sum.toLocaleString();
 
     const c = costs[fy] || { water: 0, sewer: 0 };
     document.getElementById("cost-water").textContent = money(c.water);
