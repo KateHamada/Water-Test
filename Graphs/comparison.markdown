@@ -34,7 +34,8 @@ title:  "Comparison"
     #fy-title, #usage-fy { display: none; }
     #fy-float.is-open #usage-fy { display: block; padding: 0 12px 8px; }
   }
-  #usage-table, #acct-usage-table { border-collapse: collapse; margin-top: .5em; }
+  #fy-totals-table, #usage-table, #acct-usage-table { border-collapse: collapse; margin-top: .5em; }
+  #fy-totals-table th, #fy-totals-table td,
   #usage-table th, #usage-table td, #acct-usage-table th, #acct-usage-table td {
     padding: 2px 12px; text-align: right;
   }
@@ -43,6 +44,12 @@ title:  "Comparison"
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
 {% include quick-links.html %}
+
+<h3>Total Water Usage by Fiscal Year</h3>
+<table id="fy-totals-table">
+  <thead><tr><th>Fiscal Year</th><th>Total Usage (kgals)</th></tr></thead>
+  <tbody></tbody>
+</table>
 
 <h3 id="usage-heading">Monthly Water Usage For All Accounts</h3>
 <div id="fy-float">
@@ -141,7 +148,7 @@ title:  "Comparison"
       line: { color: s.color, width: 2, dash: s.dash || "solid" },
       marker: { size: 8 },
       connectgaps: false,
-      hovertemplate: "%{y:,} thousand gal"
+      hovertemplate: "%{y:,} kgal"
     })), {
       height: 450,
       margin: { t: 20, r: 24, b: 40, l: 70 },
@@ -153,7 +160,7 @@ title:  "Comparison"
       showlegend: series.length > 1,
       legend: { orientation: "h", y: -0.12 },
       xaxis: { categoryorder: "array", categoryarray: MONTHS, gridcolor: grid, fixedrange: true },
-      yaxis: { title: "thousand gal", rangemode: "tozero", gridcolor: grid, fixedrange: true }
+      yaxis: { title: "kgal", rangemode: "tozero", gridcolor: grid, fixedrange: true }
     }, { responsive: true, displaylogo: false });
   }
 
@@ -183,7 +190,7 @@ title:  "Comparison"
     drawLines(acctEl, series);
 
     const header = document.createElement("tr");
-    ["Month", ...series.map(s => s.name + " (thousand gal)")].forEach(value => {
+    ["Month", ...series.map(s => s.name + " (kgal)")].forEach(value => {
       const th = document.createElement("th");
       th.textContent = value;
       header.append(th);
@@ -254,6 +261,21 @@ title:  "Comparison"
     });
   }
 
+  function renderFYTotals() {
+    const body = document.querySelector("#fy-totals-table tbody");
+    body.replaceChildren();
+    allFYs.slice().reverse().forEach(fy => {
+      const row = document.createElement("tr");
+      const total = data[fy].reduce((sum, value) => sum + (value || 0), 0);
+      [fy.toUpperCase(), total.toLocaleString()].forEach(value => {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.append(cell);
+      });
+      body.append(row);
+    });
+  }
+
   fetch("{{ '/water_view.csv' | relative_url }}")
     .then(r => r.text())
     .then(text => {
@@ -287,6 +309,7 @@ title:  "Comparison"
       });
       acctInput.addEventListener("change", addAccount);
       buildOptions();
+      renderFYTotals();
       render();
     })
     .catch(err => {
