@@ -23,20 +23,21 @@ title:  "Charge Comparison"
   #usage-fy label { display: block; }
   #fy-toggle { display: none; }
   #fy-toggle:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
-  #stars-filter-control { margin-bottom: 1em; }
-  #stars-filter label { margin-right: 1em; }
+  #stars-filter-control { margin-bottom: 1em; display: flex; flex-wrap: wrap; gap: .5em 2em; }
+  #stars-filter label, #charge-type label { margin-right: 1em; }
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
-    #usage-heading { margin-top: 100px; }
+    #usage-heading { margin-top: 190px; }
     /* "right" is updated by script so this box slides left when the quick links menu opens. */
     #stars-filter-control {
       position: fixed; top: 72px; right: 70px; z-index: 10; margin: 0;
+      flex-direction: column; flex-wrap: nowrap; gap: .5em;
       padding: 6px 10px; background: #ffffff; color: #1f2937;
       border: 1px solid #e3e6ea; border-radius: 6px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
-    #stars-filter label { display: block; margin-right: 0; }
+    #stars-filter label, #charge-type label { display: block; margin-right: 0; }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -69,10 +70,20 @@ title:  "Charge Comparison"
 {% include quick-links.html %}
 
 <div id="stars-filter-control">
-  <div><strong>STARS Filter</strong></div>
-  <div id="stars-filter">
-    <label><input type="radio" name="stars-filter" value="stars"> Only STARS</label>
-    <label><input type="radio" name="stars-filter" value="all" checked> Every Account</label>
+  <div>
+    <div><strong>STARS Filter</strong></div>
+    <div id="stars-filter">
+      <label><input type="radio" name="stars-filter" value="stars"> Only STARS</label>
+      <label><input type="radio" name="stars-filter" value="all" checked> Every Account</label>
+    </div>
+  </div>
+  <div>
+    <div><strong>Charge Type</strong></div>
+    <div id="charge-type">
+      <label><input type="radio" name="charge-type" value="water" checked> Water</label>
+      <label><input type="radio" name="charge-type" value="sewer"> Sewer</label>
+      <label><input type="radio" name="charge-type" value="both"> Both</label>
+    </div>
   </div>
 </div>
 <script>
@@ -91,13 +102,13 @@ title:  "Charge Comparison"
   })();
 </script>
 
-<h3 id="usage-heading">Total Water Charges by Fiscal Year</h3>
+<h3 id="usage-heading">Total <span class="ct">Water Charges</span> by Fiscal Year</h3>
 <table id="fy-totals-table">
-  <thead><tr><th>Fiscal Year</th><th>Total Water Charges</th></tr></thead>
+  <thead><tr><th>Fiscal Year</th><th>Total <span class="ct">Water Charges</span></th></tr></thead>
   <tbody></tbody>
 </table>
 
-<h3>Monthly Water Charges For All Accounts</h3>
+<h3>Monthly <span class="ct">Water Charges</span> For All Accounts</h3>
 <div id="fy-float">
   <button id="fy-toggle" type="button" aria-expanded="false" aria-controls="usage-fy">Select FY</button>
   <div id="fy-title"><strong>Fiscal years</strong></div>
@@ -121,14 +132,14 @@ title:  "Charge Comparison"
   <table id="usage-table"></table>
 </details>
 
-<h3>Water Charges by Account</h3>
-<div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly water charges.</div>
+<h3><span class="ct">Water Charges</span> by Account</h3>
+<div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly <span class="ct-lower">water charges</span>.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
 <div id="acct-msg"></div>
 <h3 id="acct-fy-heading" hidden></h3>
 <table id="acct-fy-totals-table">
-  <thead><tr><th>Fiscal Year</th><th>Total Water Charges</th></tr></thead>
+  <thead><tr><th>Fiscal Year</th><th>Total <span class="ct">Water Charges</span></th></tr></thead>
   <tbody></tbody>
 </table>
 <h3 id="acct-usage-heading" hidden></h3>
@@ -177,6 +188,25 @@ title:  "Charge Comparison"
   // "$1,234.56" -> 1234.56, "-$2.00" -> -2, blank -> NaN
   const parseMoney = s => parseFloat((s || "").replace(/[$,]/g, ""));
 
+  // Which charges the page is showing: water, sewer, or both added together.
+  const CHARGE_LABELS = { water: "Water Charges", sewer: "Sewer Charges", both: "Water + Sewer Charges" };
+  const chargeType = () => document.querySelector('input[name="charge-type"]:checked').value;
+  const chargeLabel = () => CHARGE_LABELS[chargeType()];
+
+  // Amount for one record under the current charge type; null when it has no value (blank in the CSV).
+  function amountFor(rec) {
+    const type = chargeType();
+    const value = type === "water" ? rec.water : type === "sewer" ? rec.sewer
+      : (Number.isNaN(rec.water) && Number.isNaN(rec.sewer)) ? NaN : (rec.water || 0) + (rec.sewer || 0);
+    return Number.isNaN(value) ? null : value;
+  }
+
+  // Refresh every heading/label that names the charge type.
+  function updateLabels() {
+    document.querySelectorAll(".ct").forEach(el => { el.textContent = chargeLabel(); });
+    document.querySelectorAll(".ct-lower").forEach(el => { el.textContent = chargeLabel().toLowerCase(); });
+  }
+
   // Fiscal years currently checked, oldest first so the order is stable.
   function selectedFYs() {
     return [...document.querySelectorAll('input[name="usage-fy"]:checked')].map(i => i.value).sort();
@@ -216,11 +246,11 @@ title:  "Charge Comparison"
       showlegend: series.length > 1,
       legend: { orientation: "h", y: -0.12 },
       xaxis: { categoryorder: "array", categoryarray: MONTHS, gridcolor: grid, fixedrange: true },
-      yaxis: { title: "Water charges", tickprefix: "$", rangemode: "tozero", gridcolor: grid, fixedrange: true }
+      yaxis: { title: chargeLabel(), tickprefix: "$", rangemode: "tozero", gridcolor: grid, fixedrange: true }
     }, { responsive: true, displaylogo: false });
   }
 
-  // The single account selected for the monthly water charges chart.
+  // The single account selected for the monthly charges chart.
   const chosen = [];
   const acctFYHeading = document.getElementById("acct-fy-heading");
   const acctUsageHeading = document.getElementById("acct-usage-heading");
@@ -235,13 +265,13 @@ title:  "Charge Comparison"
     if (!chosen.length) {
       acctFYHeading.hidden = true;
       acctUsageHeading.hidden = true;
-      acctMsg.textContent = "Search for an account and pick it to view its water charges.";
+      acctMsg.textContent = "Search for an account and pick it to view its " + chargeLabel().toLowerCase() + ".";
       return;
     }
     const desc = chosen[0];
-    acctFYHeading.textContent = desc + "'s Water Charges by Fiscal Year";
+    acctFYHeading.textContent = desc + "'s " + chargeLabel() + " by Fiscal Year";
     acctFYHeading.hidden = false;
-    acctUsageHeading.textContent = "Monthly Water Charges For " + desc;
+    acctUsageHeading.textContent = "Monthly " + chargeLabel() + " For " + desc;
     acctUsageHeading.hidden = false;
     allFYs.slice().reverse().forEach(fy => {
       const row = document.createElement("tr");
@@ -363,9 +393,13 @@ title:  "Charge Comparison"
     data = {};
     byAcct = {};
     const starsOnly = document.querySelector('input[name="stars-filter"]:checked').value === "stars";
-    records.forEach(({ fy, month, amount, desc, stars }) => {
+    records.forEach(rec => {
+      const { fy, month, desc, stars } = rec;
       if (starsOnly && !stars) return;
+      // Keep every fiscal year listed even if it has no value for this charge type.
       data[fy] = data[fy] || new Array(12).fill(null);
+      const amount = amountFor(rec);
+      if (amount === null) return;
       const pos = monthIndex(month);
       data[fy][pos] = (data[fy][pos] || 0) + amount;
       if (!desc) return;
@@ -390,8 +424,9 @@ title:  "Charge Comparison"
     body.replaceChildren();
     allFYs.slice().reverse().forEach(fy => {
       const row = document.createElement("tr");
+      const hasData = data[fy].some(value => value != null);
       const total = data[fy].reduce((sum, value) => sum + (value || 0), 0);
-      [fy.toUpperCase(), money(total)].forEach(value => {
+      [fy.toUpperCase(), hasData ? money(total) : "–"].forEach(value => {
         const cell = document.createElement("td");
         cell.textContent = value;
         row.append(cell);
@@ -406,27 +441,34 @@ title:  "Charge Comparison"
       const rows = parseCSV(text);
       const header = rows[0];
       const wi = header.indexOf("water_charges_adjusted");
+      const sci = header.indexOf("sewer_charges_adjusted");
       const fi = header.indexOf("fiscal_year");
       const di = header.indexOf("date");
       const ai = header.indexOf("description");
       const si = header.indexOf("stars_include");
       for (const r of rows.slice(1)) {
         const fy = (r[fi] || "").trim().toLowerCase();
-        const amount = parseMoney(r[wi]);
+        const water = parseMoney(r[wi]);
+        const sewer = parseMoney(r[sci]);
         const month = parseInt((r[di] || "").split("-")[1], 10); // dates look like 2022-7-18
-        if (!fy || isNaN(amount) || isNaN(month)) continue;
+        if (!fy || isNaN(month)) continue;
         const desc = (r[ai] || "").trim();
-        records.push({ fy, month, amount, desc, stars: (r[si] || "").trim() !== "0" });
+        records.push({ fy, month, water, sewer, desc, stars: (r[si] || "").trim() !== "0" });
       }
-      document.getElementById("stars-filter").addEventListener("change", () => {
+      // Rebuild everything when the STARS filter or the charge type changes.
+      const refresh = () => {
         const selectedFys = selectedFYs();
         rebuildData();
         buildOptions(selectedFys);
         renderAccountOptions();
         if (chosen.length && !byAcct[chosen[0]]) chosen.splice(0);
+        updateLabels();
         renderFYTotals();
         render();
-      });
+      };
+      document.getElementById("stars-filter").addEventListener("change", refresh);
+      document.getElementById("charge-type").addEventListener("change", refresh);
+      updateLabels();
       rebuildData();
       renderAccountOptions();
       acctInput.addEventListener("change", addAccount);
