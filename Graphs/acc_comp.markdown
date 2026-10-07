@@ -24,14 +24,18 @@ title:  "Account Comparison"
     border: 1px solid #e3e6ea; border-radius: 6px; padding: 8px 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
-  @media (prefers-color-scheme: dark) {
-    #fy-float { background: #1f2329; color: #e5e7eb; border-color: #3a3f47; }
-  }
   #usage-fy label { display: block; }
-  /* On narrow screens there's no room in the margin, so pin it to the top instead. */
+  #fy-toggle { display: none; }
+  #fy-toggle:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
+  /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
-    #fy-float { top: 0; left: 0; right: 0; border-radius: 0; text-align: center; }
-    #usage-fy label { display: inline; margin: 0 .6em; }
+    #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
+    #fy-toggle {
+      display: block; padding: 8px 12px; border: 0; border-radius: 4px;
+      background: transparent; color: inherit; font: inherit; cursor: pointer;
+    }
+    #fy-title, #usage-fy { display: none; }
+    #fy-float.is-open #usage-fy { display: block; padding: 0 12px 8px; }
   }
   #acct-table { border-collapse: collapse; margin-top: .5em; }
   #acct-table th, #acct-table td { padding: 2px 12px; text-align: right; }
@@ -43,9 +47,21 @@ title:  "Account Comparison"
 
 <h3>Account Water Usage Comparison</h3>
 <div id="fy-float">
-  <div><strong>Fiscal year</strong></div>
+  <button id="fy-toggle" type="button" aria-expanded="false" aria-controls="usage-fy">Select FY</button>
+  <div id="fy-title"><strong>Fiscal year</strong></div>
   <div id="usage-fy"></div>
 </div>
+<script>
+  (() => {
+    const picker = document.getElementById("fy-float");
+    const toggle = document.getElementById("fy-toggle");
+    toggle.addEventListener("click", () => {
+      const open = toggle.getAttribute("aria-expanded") !== "true";
+      picker.classList.toggle("is-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+    });
+  })();
+</script>
 <div>Uses the fiscal year selected on the left. Type to search, then pick an account to add it. Add several to compare them.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>

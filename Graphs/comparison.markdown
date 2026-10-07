@@ -25,14 +25,18 @@ title:  "Comparison"
     border: 1px solid #e3e6ea; border-radius: 6px; padding: 8px 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
-  @media (prefers-color-scheme: dark) {
-    #fy-float { background: #1f2329; color: #e5e7eb; border-color: #3a3f47; }
-  }
   #usage-fy label { display: block; }
-  /* On narrow screens there's no room in the margin, so pin it to the top instead. */
+  #fy-toggle { display: none; }
+  #fy-toggle:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
+  /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
-    #fy-float { top: 0; left: 0; right: 0; border-radius: 0; text-align: center; }
-    #usage-fy label { display: inline; margin: 0 .6em; }
+    #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
+    #fy-toggle {
+      display: block; padding: 8px 12px; border: 0; border-radius: 4px;
+      background: transparent; color: inherit; font: inherit; cursor: pointer;
+    }
+    #fy-title, #usage-fy { display: none; }
+    #fy-float.is-open #usage-fy { display: block; padding: 0 12px 8px; }
   }
   #usage-table { border-collapse: collapse; margin-top: .5em; }
   #usage-table th, #usage-table td { padding: 2px 12px; text-align: right; }
@@ -44,9 +48,21 @@ title:  "Comparison"
 
 <h3>Cumulative Monthly Water Usage</h3>
 <div id="fy-float">
-  <div><strong>Fiscal years</strong></div>
+  <button id="fy-toggle" type="button" aria-expanded="false" aria-controls="usage-fy">Select FY</button>
+  <div id="fy-title"><strong>Fiscal years</strong></div>
   <div id="usage-fy"></div>
 </div>
+<script>
+  (() => {
+    const picker = document.getElementById("fy-float");
+    const toggle = document.getElementById("fy-toggle");
+    toggle.addEventListener("click", () => {
+      const open = toggle.getAttribute("aria-expanded") !== "true";
+      picker.classList.toggle("is-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+    });
+  })();
+</script>
 <div id="chart-msg"></div>
 <div id="usage-chart"></div>
 <details>
@@ -55,7 +71,7 @@ title:  "Comparison"
 </details>
 
 <h3>Monthly Water Usage by Account</h3>
-<div>Uses the fiscal years selected above. Type to search, then pick an account to add it. Add several to compare them.</div>
+<div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly usage.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
 <div id="acct-chips"></div>
@@ -137,10 +153,8 @@ title:  "Comparison"
     }, { responsive: true, displaylogo: false });
   }
 
-  // Accounts picked in the search box. Each keeps its color while it stays on the chart.
+  // The single account selected for the monthly usage chart.
   const chosen = [];
-  const acctColor = {};
-  const DASHES = ["solid", "dash", "dot", "dashdot", "longdash", "longdashdot"];
   const acctChips = document.getElementById("acct-chips");
 
   function renderChips() {
@@ -149,7 +163,6 @@ title:  "Comparison"
       const b = document.createElement("button");
       b.type = "button";
       b.className = "chip";
-      b.style.borderColor = acctColor[desc];
       b.title = "Remove";
       b.textContent = desc + " ×";
       b.addEventListener("click", () => {
@@ -161,24 +174,22 @@ title:  "Comparison"
     });
   }
 
-  // One line per chosen account and selected fiscal year.
-  // One account: lines are colored by fiscal year. Several: colored by account, dashed by fiscal year.
+  // One line per selected fiscal year for the chosen account.
   function renderAccount(fys) {
     Plotly.purge(acctEl);
-    if (!chosen.length) { acctMsg.textContent = "Search for an account and pick it to add it to the chart."; return; }
-    const single = chosen.length === 1;
+    if (!chosen.length) { acctMsg.textContent = "Search for an account and pick it to view its usage."; return; }
+    const desc = chosen[0];
     const series = [];
-    chosen.forEach(desc => fys.forEach(fy => {
+    fys.forEach(fy => {
       const vals = byAcct[desc][fy];
       if (!vals) return;
       series.push({
-        name: single ? fy.toUpperCase() : fys.length === 1 ? desc : desc + " · " + fy.toUpperCase(),
+        name: fy.toUpperCase(),
         vals,
-        color: single ? colorFor(fy) : acctColor[desc],
-        dash: !single && fys.length > 1 ? DASHES[allFYs.indexOf(fy) % DASHES.length] : "solid"
+        color: colorFor(fy)
       });
-    }));
-    if (!series.length) { acctMsg.textContent = "The chosen accounts have no data for the selected fiscal years."; return; }
+    });
+    if (!series.length) { acctMsg.textContent = "The chosen account has no data for the selected fiscal years."; return; }
     acctMsg.textContent = "";
     drawLines(acctEl, series);
   }
@@ -189,12 +200,7 @@ title:  "Comparison"
     if (!typed) return;
     const desc = Object.keys(byAcct).find(d => d.toLowerCase() === typed);
     if (!desc) { acctMsg.textContent = "No account matches \"" + acctInput.value + "\"."; return; }
-    if (!chosen.includes(desc)) {
-      const color = PALETTE.find(c => !chosen.some(d => acctColor[d] === c));
-      if (!color) { acctMsg.textContent = "You can compare up to " + PALETTE.length + " accounts. Remove one to add another."; return; }
-      acctColor[desc] = color;
-      chosen.push(desc);
-    }
+    chosen.splice(0, chosen.length, desc);
     acctInput.value = "";
     renderChips();
     renderAccount(selectedFYs());
