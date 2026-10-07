@@ -1,18 +1,14 @@
 ---
-layout: single
-classes: wide
+layout: page
 title:  "Comparison"
 ---
 
 <style>
-  /* minimal-mistakes: keep the content in a centered 740px column (the floating boxes are
-     positioned relative to it), hide the page title, and keep labels inline. */
-  .page__title { display: none; }
-  .page__content { max-width: 740px; margin: 0 auto; }
-  .page__content label { display: inline-block; margin: 0; }
+  /* Hide the page title heading; page.title is still used by the navbar. */
+  .post-header { display: none; }
   /* Fixed height so the chart never resizes (and pushes the table) when the year changes. */
-  #usage-chart { max-width: 100%; height: 450px; }
-  #acct-chart { max-width: 100%; height: 450px; }
+  #usage-chart { max-width: 800px; height: 450px; }
+  #acct-chart { max-width: 800px; height: 450px; }
   #acct-msg { padding: 1em 0; color: #6b7280; }
   #acct-input { width: 100%; max-width: 400px; padding: 4px 8px; }
   /* Floating fiscal year picker that stays beside the charts while scrolling.

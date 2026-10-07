@@ -2,17 +2,8 @@
 # Feel free to add content and custom Front Matter to this file.
 # To modify the layout, see https://jekyllrb.com/docs/themes/#overriding-theme-defaults
 
-layout: single
-classes: wide
+layout: home
 ---
-
-<style>
-  /* minimal-mistakes: keep the content in a centered 740px column (the floating boxes are
-     positioned relative to it), hide the page title, and keep labels inline. */
-  .page__title { display: none; }
-  .page__content { max-width: 740px; margin: 0 auto; }
-  .page__content label { display: inline-block; margin: 0; }
-</style>
 
 {% include quick-links.html %}
 

@@ -26,10 +26,15 @@ url: "https://katehamada.github.io" # the base hostname & protocol for your site
 
 # Build settings
 remote_theme: "mmistakes/minimal-mistakes@4.28.1"
+# Pages listed in the navbar. Graphs and Comparison are only linked from the quick links box.
+header_pages:
+  - about.markdown
 plugins:
   - jekyll-include-cache
   - jekyll-remote-theme
   - jekyll-feed
+
+remote_theme: "mmistakes/minimal-mistakes@4.28.1"
 
 # Exclude from processing.
 # The following items will not be processed, by default.
