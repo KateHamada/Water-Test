@@ -23,10 +23,20 @@ title:  "Comparison"
   #usage-fy label { display: block; }
   #fy-toggle { display: none; }
   #fy-toggle:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
+  #stars-filter-control {
+    display: inline-flex; align-items: center; gap: 6px; margin-bottom: 1em;
+  }
+  #stars-filter-control select { max-width: 150px; }
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
     #usage-heading { margin-top: 70px; }
+    #stars-filter-control {
+      position: fixed; top: 72px; right: 62px; z-index: 10; margin: 0;
+      padding: 6px; background: #ffffff; color: #1f2937;
+      border: 1px solid #e3e6ea; border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -46,6 +56,14 @@ title:  "Comparison"
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
 {% include quick-links.html %}
+
+<label id="stars-filter-control">
+  <span>STARS Filter</span>
+  <select id="stars-filter">
+    <option value="stars">Only STARS</option>
+    <option value="all" selected>Every Account</option>
+  </select>
+</label>
 
 <h3 id="usage-heading">Total Water Usage by Fiscal Year</h3>
 <table id="fy-totals-table">
@@ -121,8 +139,9 @@ title:  "Comparison"
     return rows;
   }
 
-  const data = {}; // data[fy][monthPosition] = summed thousands_gal
-  const byAcct = {}; // byAcct[description][fy][monthPosition] = summed thousands_gal
+  let data = {}; // data[fy][monthPosition] = summed thousands_gal
+  let byAcct = {}; // byAcct[description][fy][monthPosition] = summed thousands_gal
+  const records = [];
   const chartEl = document.getElementById("usage-chart");
   const acctEl = document.getElementById("acct-chart");
   const acctInput = document.getElementById("acct-input");
@@ -278,16 +297,45 @@ title:  "Comparison"
   }
 
   // One checkbox per fiscal year found in the data, newest first. The newest two start checked.
-  function buildOptions() {
+  function buildOptions(selectedFys = []) {
     const container = document.getElementById("usage-fy");
     allFYs = Object.keys(data).sort();
+    const retainedFys = selectedFys.filter(fy => allFYs.includes(fy));
+    container.replaceChildren();
     allFYs.slice().reverse().forEach((fy, i) => {
       const label = document.createElement("label");
       const input = document.createElement("input");
-      input.type = "checkbox"; input.name = "usage-fy"; input.value = fy; input.checked = i < 2;
+      input.type = "checkbox"; input.name = "usage-fy"; input.value = fy;
+      input.checked = retainedFys.length ? retainedFys.includes(fy) : i < 2;
       input.addEventListener("change", render);
       label.append(input, " " + fy.toUpperCase());
       container.append(label);
+    });
+  }
+
+  function rebuildData() {
+    data = {};
+    byAcct = {};
+    const starsOnly = document.getElementById("stars-filter").value === "stars";
+    records.forEach(({ fy, month, gal, desc, stars }) => {
+      if (starsOnly && !stars) return;
+      data[fy] = data[fy] || new Array(12).fill(null);
+      const pos = monthIndex(month);
+      data[fy][pos] = (data[fy][pos] || 0) + gal;
+      if (!desc) return;
+      byAcct[desc] = byAcct[desc] || {};
+      byAcct[desc][fy] = byAcct[desc][fy] || new Array(12).fill(null);
+      byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + gal;
+    });
+  }
+
+  function renderAccountOptions() {
+    const list = document.getElementById("acct-list");
+    list.replaceChildren();
+    Object.keys(byAcct).sort((a, b) => a.localeCompare(b)).forEach(desc => {
+      const option = document.createElement("option");
+      option.value = desc;
+      list.append(option);
     });
   }
 
@@ -315,28 +363,26 @@ title:  "Comparison"
       const fi = header.indexOf("fiscal_year");
       const di = header.indexOf("date");
       const ai = header.indexOf("description");
+      const si = header.indexOf("stars_include");
       for (const r of rows.slice(1)) {
         const fy = (r[fi] || "").trim().toLowerCase();
         const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
         const month = parseInt((r[di] || "").split("-")[1], 10); // dates look like 2022-7-18
         if (!fy || isNaN(gal) || isNaN(month)) continue;
-        data[fy] = data[fy] || new Array(12).fill(null);
-        const pos = monthIndex(month);
-        data[fy][pos] = (data[fy][pos] || 0) + gal;
-
         const desc = (r[ai] || "").trim();
-        if (desc) {
-          byAcct[desc] = byAcct[desc] || {};
-          byAcct[desc][fy] = byAcct[desc][fy] || new Array(12).fill(null);
-          byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + gal;
-        }
+        records.push({ fy, month, gal, desc, stars: (r[si] || "").trim() !== "0" });
       }
-      const list = document.getElementById("acct-list");
-      Object.keys(byAcct).sort((a, b) => a.localeCompare(b)).forEach(d => {
-        const opt = document.createElement("option");
-        opt.value = d;
-        list.append(opt);
+      document.getElementById("stars-filter").addEventListener("change", () => {
+        const selectedFys = selectedFYs();
+        rebuildData();
+        buildOptions(selectedFys);
+        renderAccountOptions();
+        if (chosen.length && !byAcct[chosen[0]]) chosen.splice(0);
+        renderFYTotals();
+        render();
       });
+      rebuildData();
+      renderAccountOptions();
       acctInput.addEventListener("change", addAccount);
       buildOptions();
       renderFYTotals();
