@@ -26,6 +26,7 @@ title:  "Graphs"
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
+    #usage-heading { margin-top: 96px; }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -41,7 +42,7 @@ title:  "Graphs"
 
 {% include quick-links.html %}
 
-<h3>Cumulative Monthly Water Usage</h3>
+<h3 id="usage-heading">Cumulative Monthly Water Usage</h3>
 <div id="fy-float">
   <button id="fy-toggle" type="button" aria-expanded="false" aria-controls="usage-fy">Select FY</button>
   <div id="fy-title"><strong>Fiscal year</strong></div>
@@ -111,9 +112,10 @@ title:  "Graphs"
 
   // Draw a single-series line chart of monthly usage into the given element.
   function drawLine(el, vals, name) {
-    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const ink = dark ? "#e5e7eb" : "#1f2937";
-    const grid = dark ? "#3a3f47" : "#e3e6ea";
+    // dark mode looks weird
+    // const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const ink = "#1f2937";
+    const grid = "#3a3f47";
 
     // null values leave a gap in the line instead of being drawn as zero.
     Plotly.react(el, [{

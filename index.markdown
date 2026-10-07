@@ -35,7 +35,7 @@ layout: home
 
 <h3>Top 10 customers by water + sewer charges</h3>
 <table id="top-table">
-  <thead><tr><th>#</th><th>Account</th><th>Water (adjusted)</th><th>Sewer (adjusted)</th><th>Total</th></tr></thead>
+  <thead><tr><th>#</th><th>Account</th><th>Usage (kgals)</th><th>Water</th><th>Sewer</th><th>Total</th></tr></thead>
   <tbody></tbody>
 </table>
 
@@ -83,14 +83,14 @@ layout: home
 
     // Top 10 accounts (by description) for the selected year, highest combined charges first.
     const top = Object.entries(byAcct[fy] || {})
-      .map(([desc, v]) => ({ desc, water: v.water, sewer: v.sewer, total: v.water + v.sewer }))
+      .map(([desc, v]) => ({ desc, usage: v.usage, water: v.water, sewer: v.sewer, total: v.water + v.sewer }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
     const body = document.querySelector("#top-table tbody");
     body.replaceChildren();
     top.forEach((t, i) => {
       const tr = document.createElement("tr");
-      [i + 1, t.desc, money(t.water), money(t.sewer), money(t.total)].forEach(val => {
+      [i + 1, t.desc, t.usage.toLocaleString() + " kgals", money(t.water), money(t.sewer), money(t.total)].forEach(val => {
         const td = document.createElement("td");
         td.textContent = val;
         tr.append(td);
@@ -138,13 +138,14 @@ layout: home
         const desc = (r[di] || "").trim();
         if (desc) {
           byAcct[fy] = byAcct[fy] || {};
-          const a = byAcct[fy][desc] = byAcct[fy][desc] || { water: 0, sewer: 0 };
+          const a = byAcct[fy][desc] = byAcct[fy][desc] || { usage: 0, water: 0, sewer: 0 };
           a.water += parseMoney(r[wi]);
           a.sewer += parseMoney(r[si]);
         }
         const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
         if (isNaN(gal)) continue;
         totals[fy] = (totals[fy] || 0) + gal;
+        if (desc) byAcct[fy][desc].usage += gal;
       }
       buildOptions();
       render();

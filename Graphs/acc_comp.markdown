@@ -30,6 +30,7 @@ title:  "Account Comparison"
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
+    #usage-heading { margin-top: 96px; }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -147,9 +148,10 @@ title:  "Account Comparison"
     if (!series.length) { acctMsg.textContent = "The chosen accounts have no data for " + fy.toUpperCase() + "."; return; }
     acctMsg.textContent = chosen.length > series.length ? "Some chosen accounts have no data for " + fy.toUpperCase() + "." : "";
 
-    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const ink = dark ? "#e5e7eb" : "#1f2937";
-    const grid = dark ? "#3a3f47" : "#e3e6ea";
+    // dark mode looks weird
+    // const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const ink = "#1f2937";
+    const grid = "#3a3f47";
 
     // null values leave a gap in the line instead of being drawn as zero.
     Plotly.react(acctEl, series.map(s => ({

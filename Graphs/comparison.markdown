@@ -11,11 +11,6 @@ title:  "Comparison"
   #acct-chart { max-width: 800px; height: 450px; }
   #acct-msg { padding: 1em 0; color: #6b7280; }
   #acct-input { width: 100%; max-width: 400px; padding: 4px 8px; }
-  #acct-chips { margin-top: .5em; }
-  #acct-chips .chip {
-    margin: 0 .5em .5em 0; padding: 2px 10px; cursor: pointer;
-    background: transparent; color: inherit; border: 2px solid; border-radius: 999px; font: inherit;
-  }
   /* Floating fiscal year picker that stays beside the charts while scrolling.
      The theme's content column is 740px wide and centered, so anchor the box's
      right edge 16px left of that column instead of the screen edge. */
@@ -31,6 +26,7 @@ title:  "Comparison"
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
+    #usage-heading { margin-top: 96px; }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -74,7 +70,7 @@ title:  "Comparison"
 <div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly usage.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
-<div id="acct-chips"></div>
+<h4 id="acct-title" hidden></h4>
 <div id="acct-msg"></div>
 <div id="acct-chart"></div>
 
@@ -124,9 +120,10 @@ title:  "Comparison"
 
   // Draw one line per entry in series ([{ name, vals, color }]) into the given element.
   function drawLines(el, series) {
-    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const ink = dark ? "#e5e7eb" : "#1f2937";
-    const grid = dark ? "#3a3f47" : "#e3e6ea";
+   // dark mode looks weird
+    // const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const ink = "#1f2937";
+    const grid = "#3a3f47";
 
     // null values leave a gap in the line instead of being drawn as zero.
     Plotly.react(el, series.map(s => ({
@@ -155,24 +152,7 @@ title:  "Comparison"
 
   // The single account selected for the monthly usage chart.
   const chosen = [];
-  const acctChips = document.getElementById("acct-chips");
-
-  function renderChips() {
-    acctChips.replaceChildren();
-    chosen.forEach(desc => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "chip";
-      b.title = "Remove";
-      b.textContent = desc + " ×";
-      b.addEventListener("click", () => {
-        chosen.splice(chosen.indexOf(desc), 1);
-        renderChips();
-        renderAccount(selectedFYs());
-      });
-      acctChips.append(b);
-    });
-  }
+  const acctTitle = document.getElementById("acct-title");
 
   // One line per selected fiscal year for the chosen account.
   function renderAccount(fys) {
@@ -201,8 +181,9 @@ title:  "Comparison"
     const desc = Object.keys(byAcct).find(d => d.toLowerCase() === typed);
     if (!desc) { acctMsg.textContent = "No account matches \"" + acctInput.value + "\"."; return; }
     chosen.splice(0, chosen.length, desc);
+    acctTitle.textContent = desc;
+    acctTitle.hidden = false;
     acctInput.value = "";
-    renderChips();
     renderAccount(selectedFYs());
   }
 
