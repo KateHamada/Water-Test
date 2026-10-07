@@ -51,6 +51,17 @@ title:  "Comparison"
   #usage-table th, #usage-table td, #acct-usage-table th, #acct-usage-table td {
     padding: 2px 12px; text-align: right;
   }
+  /* Make "Show data table" look like a button, with an arrow that flips when open. */
+  details > summary {
+    display: inline-block; list-style: none; cursor: pointer; user-select: none;
+    padding: 6px 14px; border: 1px solid currentColor; border-radius: 6px;
+    background: rgba(127, 127, 127, 0.12); font-weight: 600;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "\25B8"; display: inline-block; margin-right: 8px; transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+  details > summary:hover { background: rgba(127, 127, 127, 0.25); }
+  details > summary:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>

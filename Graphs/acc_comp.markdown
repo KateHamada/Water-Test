@@ -27,20 +27,10 @@ title:  "Account Comparison"
   #usage-fy label { display: block; }
   #fy-toggle { display: none; }
   #fy-toggle:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
-  #stars-filter-control { margin-bottom: 1em; }
-  #stars-filter label { margin-right: 1em; }
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
-    #usage-heading { margin-top: 100px; }
-    /* "right" is updated by script so this box slides left when the quick links menu opens. */
-    #stars-filter-control {
-      position: fixed; top: 72px; right: 70px; z-index: 10; margin: 0;
-      padding: 6px 10px; background: #ffffff; color: #1f2937;
-      border: 1px solid #e3e6ea; border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    }
-    #stars-filter label { display: block; margin-right: 0; }
+    #usage-heading { margin-top: 70px; }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -50,34 +40,22 @@ title:  "Account Comparison"
   }
   #acct-table { border-collapse: collapse; margin-top: .5em; }
   #acct-table th, #acct-table td { padding: 2px 12px; text-align: right; }
+  /* Make "Show data table" look like a button, with an arrow that flips when open. */
+  details > summary {
+    display: inline-block; list-style: none; cursor: pointer; user-select: none;
+    padding: 6px 14px; border: 1px solid currentColor; border-radius: 6px;
+    background: rgba(127, 127, 127, 0.12); font-weight: 600;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "\25B8"; display: inline-block; margin-right: 8px; transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+  details > summary:hover { background: rgba(127, 127, 127, 0.25); }
+  details > summary:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
 {% include quick-links.html %}
-
-<div id="stars-filter-control">
-  <div><strong>STARS Filter</strong></div>
-  <div id="stars-filter">
-    <label><input type="radio" name="stars-filter" value="stars"> Only STARS</label>
-    <label><input type="radio" name="stars-filter" value="all" checked> Every Account</label>
-  </div>
-</div>
-<script>
-  // On narrow screens the quick links menu grows leftward when opened, so keep the
-  // STARS box just to its left instead of underneath it (where it hid the close button).
-  (() => {
-    const nav = document.getElementById("quick-links");
-    const stars = document.getElementById("stars-filter-control");
-    const narrow = window.matchMedia("(max-width: 1100px)");
-    function place() {
-      stars.style.right = narrow.matches ? (nav.offsetWidth + 12 + 8) + "px" : "";
-    }
-    new ResizeObserver(place).observe(nav);
-    narrow.addEventListener("change", place);
-    place();
-  })();
-</script>
 
 <h3 id="usage-heading">Account Water Usage Comparison</h3>
 <div id="fy-float">
@@ -134,8 +112,7 @@ title:  "Account Comparison"
     return rows;
   }
 
-  const records = []; // every usable CSV row: { fy, month, gal, desc, stars }
-  let byAcct = {}; // byAcct[description][fy][monthPosition] = summed thousands_gal, after the STARS filter
+  const byAcct = {}; // byAcct[description][fy][monthPosition] = summed thousands_gal
   const fyList = new Set();
   const acctEl = document.getElementById("acct-chart");
   const acctInput = document.getElementById("acct-input");
@@ -242,42 +219,13 @@ title:  "Account Comparison"
     render();
   }
 
-  // Rebuild the per-account totals from the records, honoring the STARS filter.
-  function rebuildData() {
-    byAcct = {};
-    fyList.clear();
-    const starsOnly = document.querySelector('input[name="stars-filter"]:checked').value === "stars";
-    records.forEach(({ fy, month, gal, desc, stars }) => {
-      if (starsOnly && !stars) return;
-      fyList.add(fy);
-      byAcct[desc] = byAcct[desc] || {};
-      byAcct[desc][fy] = byAcct[desc][fy] || new Array(12).fill(null);
-      const pos = monthIndex(month);
-      byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + gal;
-    });
-  }
-
-  function renderAccountOptions() {
-    const list = document.getElementById("acct-list");
-    list.replaceChildren();
-    Object.keys(byAcct).sort((a, b) => a.localeCompare(b)).forEach(d => {
-      const opt = document.createElement("option");
-      opt.value = d;
-      list.append(opt);
-    });
-  }
-
   // One radio button per fiscal year found in the data, newest first.
-  // keep is the fiscal year to leave selected (e.g. across a STARS filter change), if it still exists.
-  function buildOptions(keep) {
+  function buildOptions() {
     const container = document.getElementById("usage-fy");
-    container.replaceChildren();
-    const years = [...fyList].sort().reverse();
-    const selected = years.includes(keep) ? keep : years[0];
-    years.forEach(fy => {
+    [...fyList].sort().reverse().forEach((fy, i) => {
       const label = document.createElement("label");
       const input = document.createElement("input");
-      input.type = "radio"; input.name = "usage-fy"; input.value = fy; input.checked = fy === selected;
+      input.type = "radio"; input.name = "usage-fy"; input.value = fy; input.checked = i === 0;
       input.addEventListener("change", render);
       label.append(input, " " + fy.toUpperCase());
       container.append(label);
@@ -293,30 +241,25 @@ title:  "Account Comparison"
       const fi = header.indexOf("fiscal_year");
       const di = header.indexOf("date");
       const ai = header.indexOf("description");
-      const si = header.indexOf("stars_include");
       for (const r of rows.slice(1)) {
         const fy = (r[fi] || "").trim().toLowerCase();
         const desc = (r[ai] || "").trim();
         const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
         const month = parseInt((r[di] || "").split("-")[1], 10); // dates look like 2022-7-18
         if (!fy || !desc || isNaN(gal) || isNaN(month)) continue;
-        records.push({ fy, month, gal, desc, stars: (r[si] || "").trim() !== "0" });
+        fyList.add(fy);
+        byAcct[desc] = byAcct[desc] || {};
+        byAcct[desc][fy] = byAcct[desc][fy] || new Array(12).fill(null);
+        const pos = monthIndex(month);
+        byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + gal;
       }
-      document.getElementById("stars-filter").addEventListener("change", () => {
-        const keep = currentFY();
-        rebuildData();
-        renderAccountOptions();
-        buildOptions(keep);
-        // Drop chosen accounts the filter removed.
-        for (let i = chosen.length - 1; i >= 0; i--) {
-          if (!byAcct[chosen[i]]) chosen.splice(i, 1);
-        }
-        renderChips();
-        render();
+      const list = document.getElementById("acct-list");
+      Object.keys(byAcct).sort((a, b) => a.localeCompare(b)).forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        list.append(opt);
       });
       acctInput.addEventListener("change", addAccount);
-      rebuildData();
-      renderAccountOptions();
       buildOptions();
       render();
     })
