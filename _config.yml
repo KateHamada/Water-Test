@@ -30,7 +30,11 @@ remote_theme: "mmistakes/minimal-mistakes@4.28.1"
 header_pages:
   - about.markdown
 plugins:
+  - jekyll-include-cache
+  - jekyll-remote-theme
   - jekyll-feed
+
+remote_theme: "mmistakes/minimal-mistakes@4.28.1"
 
 # Exclude from processing.
 # The following items will not be processed, by default.
