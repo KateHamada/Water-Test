@@ -18,11 +18,6 @@ layout: home
   }
   .stat-box .stat-label { font-size: 0.85em; color: #4b5563; }
   .stat-box .stat-value { font-size: 1.6em; font-weight: bold; color: #1f2937; }
-  @media (prefers-color-scheme: dark) {
-    .stat-box { background: #1f2a38; border-color: #34475e; border-left-color: #6aa9e9; }
-    .stat-box .stat-label { color: #9aa3af; }
-    .stat-box .stat-value { color: #e5e7eb; }
-  }
 </style>
 <div class="stat-box">
   <div class="stat-label">Total Water Usage</div>

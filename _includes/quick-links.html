@@ -11,17 +11,61 @@
   @media (prefers-color-scheme: dark) {
     #quick-links { background: #1f2329; color: #e5e7eb; border-color: #3a3f47; }
   }
-  /* Not enough room beside the content column on narrow screens; the navbar still has the links. */
+  #quick-links-toggle { display: none; }
+  #quick-links-list { list-style: none; margin: 4px 0 0; padding: 0; }
+  #quick-links-list li { margin: 2px 0; }
+  #quick-links-toggle:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
+  .waffle-icon {
+    display: grid; grid-template-columns: repeat(3, 4px); gap: 3px;
+  }
+  .waffle-icon span { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
   @media (max-width: 1100px) {
-    #quick-links { display: none; }
+    #quick-links { top: 72px; left: auto; right: 12px; padding: 6px; }
+    #quick-links-title { display: none; }
+    #quick-links-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 38px; height: 38px; padding: 0; border: 0; border-radius: 4px;
+      background: transparent; color: inherit; cursor: pointer;
+    }
+    #quick-links-list { display: none; margin-top: 6px; }
+    #quick-links.is-open #quick-links-list { display: block; }
   }
 </style>
 <nav id="quick-links" aria-label="Quick links">
-  <strong>Quick links</strong>
-  <ul>
+  <strong id="quick-links-title">Quick links</strong>
+  <button id="quick-links-toggle" type="button" aria-label="Open quick links" aria-expanded="false" aria-controls="quick-links-list">
+    <span class="waffle-icon" aria-hidden="true">
+      <span></span><span></span><span></span>
+      <span></span><span></span><span></span>
+      <span></span><span></span><span></span>
+    </span>
+  </button>
+  <ul id="quick-links-list">
     <li><a href="{{ '/' | relative_url }}">Summary</a></li>
     <li><a href="{{ '/Graphs/graphs.html' | relative_url }}">Graphs</a></li>
     <li><a href="{{ '/Graphs/comparison.html' | relative_url }}">FY Comparison</a></li>
     <li><a href="{{ '/Graphs/acc_comp.html' | relative_url }}">Account Comparison</a></li>
   </ul>
 </nav>
+<script>
+  (() => {
+    const nav = document.getElementById("quick-links");
+    const toggle = document.getElementById("quick-links-toggle");
+
+    function setOpen(open) {
+      nav.classList.toggle("is-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.setAttribute("aria-label", open ? "Close quick links" : "Open quick links");
+    }
+
+    toggle.addEventListener("click", () => {
+      setOpen(toggle.getAttribute("aria-expanded") !== "true");
+    });
+    nav.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+  })();
+</script>
