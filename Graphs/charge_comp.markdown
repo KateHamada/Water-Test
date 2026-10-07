@@ -1,6 +1,6 @@
 ---
 layout: page
-title:  "Comparison"
+title:  "Charge Comparison"
 ---
 
 <style>
@@ -91,13 +91,13 @@ title:  "Comparison"
   })();
 </script>
 
-<h3 id="usage-heading">Total Water Usage by Fiscal Year</h3>
+<h3 id="usage-heading">Total Water Charges by Fiscal Year</h3>
 <table id="fy-totals-table">
-  <thead><tr><th>Fiscal Year</th><th>Total Usage (kgals)</th></tr></thead>
+  <thead><tr><th>Fiscal Year</th><th>Total Water Charges</th></tr></thead>
   <tbody></tbody>
 </table>
 
-<h3>Monthly Water Usage For All Accounts</h3>
+<h3>Monthly Water Charges For All Accounts</h3>
 <div id="fy-float">
   <button id="fy-toggle" type="button" aria-expanded="false" aria-controls="usage-fy">Select FY</button>
   <div id="fy-title"><strong>Fiscal years</strong></div>
@@ -121,14 +121,14 @@ title:  "Comparison"
   <table id="usage-table"></table>
 </details>
 
-<h3>Water Usage by Account</h3>
-<div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly usage.</div>
+<h3>Water Charges by Account</h3>
+<div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly water charges.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
 <div id="acct-msg"></div>
 <h3 id="acct-fy-heading" hidden></h3>
 <table id="acct-fy-totals-table">
-  <thead><tr><th>Fiscal Year</th><th>Total Usage (kgals)</th></tr></thead>
+  <thead><tr><th>Fiscal Year</th><th>Total Water Charges</th></tr></thead>
   <tbody></tbody>
 </table>
 <h3 id="acct-usage-heading" hidden></h3>
@@ -165,13 +165,17 @@ title:  "Comparison"
     return rows;
   }
 
-  let data = {}; // data[fy][monthPosition] = summed thousands_gal
-  let byAcct = {}; // byAcct[description][fy][monthPosition] = summed thousands_gal
+  let data = {}; // data[fy][monthPosition] = summed water_charges_adjusted ($)
+  let byAcct = {}; // byAcct[description][fy][monthPosition] = summed water_charges_adjusted ($)
   const records = [];
   const chartEl = document.getElementById("usage-chart");
   const acctEl = document.getElementById("acct-chart");
   const acctInput = document.getElementById("acct-input");
   const acctMsg = document.getElementById("acct-msg");
+
+  const money = v => v.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  // "$1,234.56" -> 1234.56, "-$2.00" -> -2, blank -> NaN
+  const parseMoney = s => parseFloat((s || "").replace(/[$,]/g, ""));
 
   // Fiscal years currently checked, oldest first so the order is stable.
   function selectedFYs() {
@@ -200,7 +204,7 @@ title:  "Comparison"
       line: { color: s.color, width: 2, dash: s.dash || "solid" },
       marker: { size: 8 },
       connectgaps: false,
-      hovertemplate: "%{y:,} kgal"
+      hovertemplate: "%{y:$,.2f}"
     })), {
       height: 450,
       margin: { t: 20, r: 24, b: 40, l: 70 },
@@ -212,11 +216,11 @@ title:  "Comparison"
       showlegend: series.length > 1,
       legend: { orientation: "h", y: -0.12 },
       xaxis: { categoryorder: "array", categoryarray: MONTHS, gridcolor: grid, fixedrange: true },
-      yaxis: { title: "kgal", rangemode: "tozero", gridcolor: grid, fixedrange: true }
+      yaxis: { title: "Water charges", tickprefix: "$", rangemode: "tozero", gridcolor: grid, fixedrange: true }
     }, { responsive: true, displaylogo: false });
   }
 
-  // The single account selected for the monthly usage chart.
+  // The single account selected for the monthly water charges chart.
   const chosen = [];
   const acctFYHeading = document.getElementById("acct-fy-heading");
   const acctUsageHeading = document.getElementById("acct-usage-heading");
@@ -231,13 +235,13 @@ title:  "Comparison"
     if (!chosen.length) {
       acctFYHeading.hidden = true;
       acctUsageHeading.hidden = true;
-      acctMsg.textContent = "Search for an account and pick it to view its usage.";
+      acctMsg.textContent = "Search for an account and pick it to view its water charges.";
       return;
     }
     const desc = chosen[0];
-    acctFYHeading.textContent = desc + "'s Usage by Fiscal Year";
+    acctFYHeading.textContent = desc + "'s Water Charges by Fiscal Year";
     acctFYHeading.hidden = false;
-    acctUsageHeading.textContent = "Monthly Water Usage For " + desc;
+    acctUsageHeading.textContent = "Monthly Water Charges For " + desc;
     acctUsageHeading.hidden = false;
     allFYs.slice().reverse().forEach(fy => {
       const row = document.createElement("tr");
@@ -245,11 +249,11 @@ title:  "Comparison"
       yearCell.textContent = fy.toUpperCase();
       row.append(yearCell);
       const values = byAcct[desc][fy];
-      const usageCell = document.createElement("td");
-      usageCell.textContent = values
-        ? values.reduce((sum, value) => sum + (value || 0), 0).toLocaleString()
+      const chargeCell = document.createElement("td");
+      chargeCell.textContent = values
+        ? money(values.reduce((sum, value) => sum + (value || 0), 0))
         : "–";
-      row.append(usageCell);
+      row.append(chargeCell);
       acctFYTotalsTable.append(row);
     });
     const series = [];
@@ -267,7 +271,7 @@ title:  "Comparison"
     drawLines(acctEl, series);
 
     const header = document.createElement("tr");
-    ["Month", ...series.map(s => s.name + " (kgal)")].forEach(value => {
+    ["Month", ...series.map(s => s.name)].forEach(value => {
       const th = document.createElement("th");
       th.textContent = value;
       header.append(th);
@@ -280,7 +284,7 @@ title:  "Comparison"
       row.append(monthCell);
       series.forEach(s => {
         const cell = document.createElement("td");
-        cell.textContent = s.vals[i] == null ? "–" : s.vals[i].toLocaleString();
+        cell.textContent = s.vals[i] == null ? "–" : money(s.vals[i]);
         row.append(cell);
       });
       acctUsageTable.append(row);
@@ -316,7 +320,7 @@ title:  "Comparison"
         "<tr><th>Month</th>" + fys.map(fy => "<th>" + fy.toUpperCase() + "</th>").join("") + "</tr>");
       MONTHS.forEach((m, i) => {
         table.insertAdjacentHTML("beforeend",
-          "<tr><td>" + m + "</td>" + fys.map(fy => "<td>" + (data[fy][i] == null ? "–" : data[fy][i].toLocaleString()) + "</td>").join("") + "</tr>");
+          "<tr><td>" + m + "</td>" + fys.map(fy => "<td>" + (data[fy][i] == null ? "–" : money(data[fy][i])) + "</td>").join("") + "</tr>");
       });
     }
     renderAccount(fys);
@@ -359,15 +363,15 @@ title:  "Comparison"
     data = {};
     byAcct = {};
     const starsOnly = document.querySelector('input[name="stars-filter"]:checked').value === "stars";
-    records.forEach(({ fy, month, gal, desc, stars }) => {
+    records.forEach(({ fy, month, amount, desc, stars }) => {
       if (starsOnly && !stars) return;
       data[fy] = data[fy] || new Array(12).fill(null);
       const pos = monthIndex(month);
-      data[fy][pos] = (data[fy][pos] || 0) + gal;
+      data[fy][pos] = (data[fy][pos] || 0) + amount;
       if (!desc) return;
       byAcct[desc] = byAcct[desc] || {};
       byAcct[desc][fy] = byAcct[desc][fy] || new Array(12).fill(null);
-      byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + gal;
+      byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + amount;
     });
   }
 
@@ -387,7 +391,7 @@ title:  "Comparison"
     allFYs.slice().reverse().forEach(fy => {
       const row = document.createElement("tr");
       const total = data[fy].reduce((sum, value) => sum + (value || 0), 0);
-      [fy.toUpperCase(), total.toLocaleString()].forEach(value => {
+      [fy.toUpperCase(), money(total)].forEach(value => {
         const cell = document.createElement("td");
         cell.textContent = value;
         row.append(cell);
@@ -401,18 +405,18 @@ title:  "Comparison"
     .then(text => {
       const rows = parseCSV(text);
       const header = rows[0];
-      const gi = header.indexOf("thousands_gal");
+      const wi = header.indexOf("water_charges_adjusted");
       const fi = header.indexOf("fiscal_year");
       const di = header.indexOf("date");
       const ai = header.indexOf("description");
       const si = header.indexOf("stars_include");
       for (const r of rows.slice(1)) {
         const fy = (r[fi] || "").trim().toLowerCase();
-        const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
+        const amount = parseMoney(r[wi]);
         const month = parseInt((r[di] || "").split("-")[1], 10); // dates look like 2022-7-18
-        if (!fy || isNaN(gal) || isNaN(month)) continue;
+        if (!fy || isNaN(amount) || isNaN(month)) continue;
         const desc = (r[ai] || "").trim();
-        records.push({ fy, month, gal, desc, stars: (r[si] || "").trim() !== "0" });
+        records.push({ fy, month, amount, desc, stars: (r[si] || "").trim() !== "0" });
       }
       document.getElementById("stars-filter").addEventListener("change", () => {
         const selectedFys = selectedFYs();
