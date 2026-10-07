@@ -185,6 +185,10 @@ title:  "Account Comparison"
       table.insertAdjacentHTML("beforeend",
         "<tr><td>" + m + "</td>" + series.map(s => "<td>" + (s.vals[i] == null ? "–" : s.vals[i].toLocaleString()) + "</td>").join("") + "</tr>");
     });
+    table.insertAdjacentHTML("beforeend",
+      "<tr><th>Total (thousand gal)</th>" + series.map(s =>
+        "<td><strong>" + s.vals.reduce((sum, value) => sum + (value || 0), 0).toLocaleString() + "</strong></td>"
+      ).join("") + "</tr>");
   }
 
   // Add the account typed/picked in the search box (fires on picking from the list, Enter, or leaving the box).

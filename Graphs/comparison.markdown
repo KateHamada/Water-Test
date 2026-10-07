@@ -77,17 +77,17 @@ title:  "Comparison"
   <table id="usage-table"></table>
 </details>
 
-<h3>Monthly Water Usage by Account</h3>
+<h3>Water Usage by Account</h3>
 <div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly usage.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
+<div id="acct-msg"></div>
 <h3 id="acct-fy-heading" hidden></h3>
 <table id="acct-fy-totals-table">
   <thead><tr><th>Fiscal Year</th><th>Total Usage (kgals)</th></tr></thead>
   <tbody></tbody>
 </table>
 <h3 id="acct-usage-heading" hidden></h3>
-<div id="acct-msg"></div>
 <div id="acct-chart"></div>
 <details>
   <summary>Show data table</summary>

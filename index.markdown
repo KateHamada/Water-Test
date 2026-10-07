@@ -7,6 +7,11 @@ layout: home
 
 {% include quick-links.html %}
 
+<div><strong>STARS Filter</strong></div>
+<div id="stars-filter">
+  <label><input type="radio" name="stars-filter" value="stars"> Only STARS</label>
+  <label><input type="radio" name="stars-filter" value="all" checked> Every Account</label>
+</div>
 <h1>Summary for a specific fiscal year</h1>
 <div>Select a fiscal year</div>
 <div id="fy-options"></div>
@@ -18,6 +23,7 @@ layout: home
   }
   .stat-box .stat-label { font-size: 0.85em; color: #4b5563; }
   .stat-box .stat-value { font-size: 1.6em; font-weight: bold; color: #1f2937; }
+  #stars-filter label { margin-right: 1em; }
 </style>
 <div class="stat-box">
   <div class="stat-label">Total Water Usage</div>
@@ -62,9 +68,10 @@ layout: home
     return rows;
   }
 
-  const totals = {};
-  const costs = {}; // costs[fy] = { water, sewer } summed from the adjusted columns
-  const byAcct = {}; // byAcct[fy][description] = { water, sewer }
+  const datasets = {
+    stars: { totals: {}, costs: {}, byAcct: {} },
+    all: { totals: {}, costs: {}, byAcct: {} }
+  };
   const totalEl = document.getElementById("fy-total");
   const money = v => v.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
@@ -72,17 +79,20 @@ layout: home
   const parseMoney = s => parseFloat((s || "").replace(/[$,]/g, "")) || 0;
 
   function render() {
-    const fy = document.querySelector('input[name="fy"]:checked').value;
-    const sum = totals[fy] || 0;
+    const fyInput = document.querySelector('input[name="fy"]:checked');
+    if (!fyInput) return;
+    const fy = fyInput.value;
+    const dataset = datasets[document.querySelector('input[name="stars-filter"]:checked').value];
+    const sum = dataset.totals[fy] || 0;
     totalEl.textContent = sum.toLocaleString();
 
-    const c = costs[fy] || { water: 0, sewer: 0 };
+    const c = dataset.costs[fy] || { water: 0, sewer: 0 };
     document.getElementById("cost-water").textContent = money(c.water);
     document.getElementById("cost-sewer").textContent = money(c.sewer);
     document.getElementById("cost-both").innerHTML = "<strong>" + money(c.water + c.sewer) + "</strong>";
 
     // Top 10 accounts (by description) for the selected year, highest combined charges first.
-    const top = Object.entries(byAcct[fy] || {})
+    const top = Object.entries(dataset.byAcct[fy] || {})
       .map(([desc, v]) => ({ desc, usage: v.usage, water: v.water, sewer: v.sewer, total: v.water + v.sewer }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
@@ -102,9 +112,12 @@ layout: home
   // Build one radio button per fiscal year found in the data, newest first.
   // So that you don't have to keep updating the hardcoded options and will
   // auto adjust based off of the data
-  function buildOptions() {
+  function buildOptions(selectedFY) {
     const container = document.getElementById("fy-options");
-    const years = Object.keys(totals).sort().reverse();
+    const dataset = datasets[document.querySelector('input[name="stars-filter"]:checked').value];
+    const years = Object.keys(dataset.totals).sort().reverse();
+    const activeFY = years.includes(selectedFY) ? selectedFY : years[0];
+    container.replaceChildren();
     years.forEach((fy, i) => {
       const label = document.createElement("label");
       label.style.marginRight = "1em";
@@ -112,7 +125,7 @@ layout: home
       input.type = "radio";
       input.name = "fy";
       input.value = fy;
-      input.checked = i === 0;
+      input.checked = fy === activeFY;
       input.addEventListener("change", render);
       label.append(input, " " + fy.toUpperCase());
       container.append(label);
@@ -129,25 +142,39 @@ layout: home
       const di = header.indexOf("description");
       const wi = header.indexOf("water_charges_adjusted");
       const si = header.indexOf("sewer_charges_adjusted");
+      const sti = header.indexOf("stars_include");
       for (const r of rows.slice(1)) {
         const fy = (r[fi] || "").trim().toLowerCase();
         if (!fy) continue;
-        costs[fy] = costs[fy] || { water: 0, sewer: 0 };
-        costs[fy].water += parseMoney(r[wi]);
-        costs[fy].sewer += parseMoney(r[si]);
         const desc = (r[di] || "").trim();
-        if (desc) {
-          byAcct[fy] = byAcct[fy] || {};
-          const a = byAcct[fy][desc] = byAcct[fy][desc] || { usage: 0, water: 0, sewer: 0 };
-          a.water += parseMoney(r[wi]);
-          a.sewer += parseMoney(r[si]);
-        }
         const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
-        if (isNaN(gal)) continue;
-        totals[fy] = (totals[fy] || 0) + gal;
-        if (desc) byAcct[fy][desc].usage += gal;
+        const isStars = (r[sti] || "").trim() !== "0";
+        const targets = isStars ? [datasets.all, datasets.stars] : [datasets.all];
+        targets.forEach(dataset => {
+          dataset.costs[fy] = dataset.costs[fy] || { water: 0, sewer: 0 };
+          dataset.costs[fy].water += parseMoney(r[wi]);
+          dataset.costs[fy].sewer += parseMoney(r[si]);
+          if (desc) {
+            dataset.byAcct[fy] = dataset.byAcct[fy] || {};
+            const account = dataset.byAcct[fy][desc] = dataset.byAcct[fy][desc] || { usage: 0, water: 0, sewer: 0 };
+            account.water += parseMoney(r[wi]);
+            account.sewer += parseMoney(r[si]);
+          }
+          if (!isNaN(gal)) {
+            dataset.totals[fy] = (dataset.totals[fy] || 0) + gal;
+            if (desc) dataset.byAcct[fy][desc].usage += gal;
+          }
+        });
       }
       buildOptions();
+      document.querySelectorAll('input[name="stars-filter"]').forEach(input => {
+        input.addEventListener("change", () => {
+          const selectedInput = document.querySelector('input[name="fy"]:checked');
+          const selectedFY = selectedInput ? selectedInput.value : undefined;
+          buildOptions(selectedFY);
+          render();
+        });
+      });
       render();
     })
     .catch(() => { totalEl.textContent = "Failed to load data"; });
