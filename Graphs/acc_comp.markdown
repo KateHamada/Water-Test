@@ -27,10 +27,20 @@ title:  "Account Comparison"
   #usage-fy label { display: block; }
   #fy-toggle { display: none; }
   #fy-toggle:focus-visible { outline: 2px solid #2a6fb0; outline-offset: 2px; }
+  #stars-filter-control { margin-bottom: 1em; }
+  #stars-filter label { margin-right: 1em; }
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
-    #usage-heading { margin-top: 70px; }
+    #usage-heading { margin-top: 100px; }
+    /* "right" is updated by script so this box slides left when the quick links menu opens. */
+    #stars-filter-control {
+      position: fixed; top: 72px; right: 70px; z-index: 10; margin: 0;
+      padding: 6px 10px; background: #ffffff; color: #1f2937;
+      border: 1px solid #e3e6ea; border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    #stars-filter label { display: block; margin-right: 0; }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -45,6 +55,29 @@ title:  "Account Comparison"
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
 {% include quick-links.html %}
+
+<div id="stars-filter-control">
+  <div><strong>STARS Filter</strong></div>
+  <div id="stars-filter">
+    <label><input type="radio" name="stars-filter" value="stars"> Only STARS</label>
+    <label><input type="radio" name="stars-filter" value="all" checked> Every Account</label>
+  </div>
+</div>
+<script>
+  // On narrow screens the quick links menu grows leftward when opened, so keep the
+  // STARS box just to its left instead of underneath it (where it hid the close button).
+  (() => {
+    const nav = document.getElementById("quick-links");
+    const stars = document.getElementById("stars-filter-control");
+    const narrow = window.matchMedia("(max-width: 1100px)");
+    function place() {
+      stars.style.right = narrow.matches ? (nav.offsetWidth + 12 + 8) + "px" : "";
+    }
+    new ResizeObserver(place).observe(nav);
+    narrow.addEventListener("change", place);
+    place();
+  })();
+</script>
 
 <h3 id="usage-heading">Account Water Usage Comparison</h3>
 <div id="fy-float">
@@ -101,7 +134,8 @@ title:  "Account Comparison"
     return rows;
   }
 
-  const byAcct = {}; // byAcct[description][fy][monthPosition] = summed thousands_gal
+  const records = []; // every usable CSV row: { fy, month, gal, desc, stars }
+  let byAcct = {}; // byAcct[description][fy][monthPosition] = summed thousands_gal, after the STARS filter
   const fyList = new Set();
   const acctEl = document.getElementById("acct-chart");
   const acctInput = document.getElementById("acct-input");
@@ -208,13 +242,42 @@ title:  "Account Comparison"
     render();
   }
 
+  // Rebuild the per-account totals from the records, honoring the STARS filter.
+  function rebuildData() {
+    byAcct = {};
+    fyList.clear();
+    const starsOnly = document.querySelector('input[name="stars-filter"]:checked').value === "stars";
+    records.forEach(({ fy, month, gal, desc, stars }) => {
+      if (starsOnly && !stars) return;
+      fyList.add(fy);
+      byAcct[desc] = byAcct[desc] || {};
+      byAcct[desc][fy] = byAcct[desc][fy] || new Array(12).fill(null);
+      const pos = monthIndex(month);
+      byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + gal;
+    });
+  }
+
+  function renderAccountOptions() {
+    const list = document.getElementById("acct-list");
+    list.replaceChildren();
+    Object.keys(byAcct).sort((a, b) => a.localeCompare(b)).forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d;
+      list.append(opt);
+    });
+  }
+
   // One radio button per fiscal year found in the data, newest first.
-  function buildOptions() {
+  // keep is the fiscal year to leave selected (e.g. across a STARS filter change), if it still exists.
+  function buildOptions(keep) {
     const container = document.getElementById("usage-fy");
-    [...fyList].sort().reverse().forEach((fy, i) => {
+    container.replaceChildren();
+    const years = [...fyList].sort().reverse();
+    const selected = years.includes(keep) ? keep : years[0];
+    years.forEach(fy => {
       const label = document.createElement("label");
       const input = document.createElement("input");
-      input.type = "radio"; input.name = "usage-fy"; input.value = fy; input.checked = i === 0;
+      input.type = "radio"; input.name = "usage-fy"; input.value = fy; input.checked = fy === selected;
       input.addEventListener("change", render);
       label.append(input, " " + fy.toUpperCase());
       container.append(label);
@@ -230,25 +293,30 @@ title:  "Account Comparison"
       const fi = header.indexOf("fiscal_year");
       const di = header.indexOf("date");
       const ai = header.indexOf("description");
+      const si = header.indexOf("stars_include");
       for (const r of rows.slice(1)) {
         const fy = (r[fi] || "").trim().toLowerCase();
         const desc = (r[ai] || "").trim();
         const gal = parseFloat((r[gi] || "").replace(/,/g, ""));
         const month = parseInt((r[di] || "").split("-")[1], 10); // dates look like 2022-7-18
         if (!fy || !desc || isNaN(gal) || isNaN(month)) continue;
-        fyList.add(fy);
-        byAcct[desc] = byAcct[desc] || {};
-        byAcct[desc][fy] = byAcct[desc][fy] || new Array(12).fill(null);
-        const pos = monthIndex(month);
-        byAcct[desc][fy][pos] = (byAcct[desc][fy][pos] || 0) + gal;
+        records.push({ fy, month, gal, desc, stars: (r[si] || "").trim() !== "0" });
       }
-      const list = document.getElementById("acct-list");
-      Object.keys(byAcct).sort((a, b) => a.localeCompare(b)).forEach(d => {
-        const opt = document.createElement("option");
-        opt.value = d;
-        list.append(opt);
+      document.getElementById("stars-filter").addEventListener("change", () => {
+        const keep = currentFY();
+        rebuildData();
+        renderAccountOptions();
+        buildOptions(keep);
+        // Drop chosen accounts the filter removed.
+        for (let i = chosen.length - 1; i >= 0; i--) {
+          if (!byAcct[chosen[i]]) chosen.splice(i, 1);
+        }
+        renderChips();
+        render();
       });
       acctInput.addEventListener("change", addAccount);
+      rebuildData();
+      renderAccountOptions();
       buildOptions();
       render();
     })
