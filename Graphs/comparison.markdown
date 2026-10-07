@@ -34,8 +34,10 @@ title:  "Comparison"
     #fy-title, #usage-fy { display: none; }
     #fy-float.is-open #usage-fy { display: block; padding: 0 12px 8px; }
   }
-  #fy-totals-table, #usage-table, #acct-usage-table { border-collapse: collapse; margin-top: .5em; }
-  #fy-totals-table th, #fy-totals-table td,
+  #fy-totals-table, #acct-fy-totals-table, #usage-table, #acct-usage-table {
+    border-collapse: collapse; margin-top: .5em;
+  }
+  #fy-totals-table th, #fy-totals-table td, #acct-fy-totals-table th, #acct-fy-totals-table td,
   #usage-table th, #usage-table td, #acct-usage-table th, #acct-usage-table td {
     padding: 2px 12px; text-align: right;
   }
@@ -45,13 +47,13 @@ title:  "Comparison"
 
 {% include quick-links.html %}
 
-<h3>Total Water Usage by Fiscal Year</h3>
+<h3 id="usage-heading">Total Water Usage by Fiscal Year</h3>
 <table id="fy-totals-table">
   <thead><tr><th>Fiscal Year</th><th>Total Usage (kgals)</th></tr></thead>
   <tbody></tbody>
 </table>
 
-<h3 id="usage-heading">Monthly Water Usage For All Accounts</h3>
+<h3>Monthly Water Usage For All Accounts</h3>
 <div id="fy-float">
   <button id="fy-toggle" type="button" aria-expanded="false" aria-controls="usage-fy">Select FY</button>
   <div id="fy-title"><strong>Fiscal years</strong></div>
@@ -80,6 +82,11 @@ title:  "Comparison"
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
 <h4 id="acct-title" hidden></h4>
+<h3>Selected Account Usage by Fiscal Year</h3>
+<table id="acct-fy-totals-table">
+  <thead><tr><th>Fiscal Year</th><th>Total Usage (kgals)</th></tr></thead>
+  <tbody></tbody>
+</table>
 <div id="acct-msg"></div>
 <div id="acct-chart"></div>
 <details>
@@ -167,14 +174,32 @@ title:  "Comparison"
   // The single account selected for the monthly usage chart.
   const chosen = [];
   const acctTitle = document.getElementById("acct-title");
+  const acctFYTotalsTable = document.querySelector("#acct-fy-totals-table tbody");
   const acctUsageTable = document.getElementById("acct-usage-table");
 
   // One line per selected fiscal year for the chosen account.
   function renderAccount(fys) {
     Plotly.purge(acctEl);
     acctUsageTable.replaceChildren();
-    if (!chosen.length) { acctMsg.textContent = "Search for an account and pick it to view its usage."; return; }
+    acctFYTotalsTable.replaceChildren();
+    if (!chosen.length) {
+      acctMsg.textContent = "Search for an account and pick it to view its usage.";
+      return;
+    }
     const desc = chosen[0];
+    allFYs.slice().reverse().forEach(fy => {
+      const row = document.createElement("tr");
+      const yearCell = document.createElement("td");
+      yearCell.textContent = fy.toUpperCase();
+      row.append(yearCell);
+      const values = byAcct[desc][fy];
+      const usageCell = document.createElement("td");
+      usageCell.textContent = values
+        ? values.reduce((sum, value) => sum + (value || 0), 0).toLocaleString()
+        : "–";
+      row.append(usageCell);
+      acctFYTotalsTable.append(row);
+    });
     const series = [];
     fys.forEach(fy => {
       const vals = byAcct[desc][fy];
