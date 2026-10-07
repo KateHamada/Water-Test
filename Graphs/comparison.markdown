@@ -26,7 +26,7 @@ title:  "Comparison"
   /* On narrow screens, collapse the picker below the navbar to keep it out of the way. */
   @media (max-width: 1100px) {
     #fy-float { top: 72px; left: 12px; right: auto; padding: 6px; }
-    #usage-heading { margin-top: 96px; }
+    #usage-heading { margin-top: 70px; }
     #fy-toggle {
       display: block; padding: 8px 12px; border: 0; border-radius: 4px;
       background: transparent; color: inherit; font: inherit; cursor: pointer;
@@ -81,12 +81,12 @@ title:  "Comparison"
 <div>Uses the fiscal years selected above. Type to search, then pick one account to view its monthly usage.</div>
 <input id="acct-input" list="acct-list" placeholder="Search for an account..." autocomplete="off">
 <datalist id="acct-list"></datalist>
-<h4 id="acct-title" hidden></h4>
-<h3>Selected Account Usage by Fiscal Year</h3>
+<h3 id="acct-fy-heading" hidden></h3>
 <table id="acct-fy-totals-table">
   <thead><tr><th>Fiscal Year</th><th>Total Usage (kgals)</th></tr></thead>
   <tbody></tbody>
 </table>
+<h3 id="acct-usage-heading" hidden></h3>
 <div id="acct-msg"></div>
 <div id="acct-chart"></div>
 <details>
@@ -173,7 +173,8 @@ title:  "Comparison"
 
   // The single account selected for the monthly usage chart.
   const chosen = [];
-  const acctTitle = document.getElementById("acct-title");
+  const acctFYHeading = document.getElementById("acct-fy-heading");
+  const acctUsageHeading = document.getElementById("acct-usage-heading");
   const acctFYTotalsTable = document.querySelector("#acct-fy-totals-table tbody");
   const acctUsageTable = document.getElementById("acct-usage-table");
 
@@ -183,10 +184,16 @@ title:  "Comparison"
     acctUsageTable.replaceChildren();
     acctFYTotalsTable.replaceChildren();
     if (!chosen.length) {
+      acctFYHeading.hidden = true;
+      acctUsageHeading.hidden = true;
       acctMsg.textContent = "Search for an account and pick it to view its usage.";
       return;
     }
     const desc = chosen[0];
+    acctFYHeading.textContent = desc + "'s Usage by Fiscal Year";
+    acctFYHeading.hidden = false;
+    acctUsageHeading.textContent = "Monthly Water Usage For " + desc;
+    acctUsageHeading.hidden = false;
     allFYs.slice().reverse().forEach(fy => {
       const row = document.createElement("tr");
       const yearCell = document.createElement("td");
@@ -242,8 +249,6 @@ title:  "Comparison"
     const desc = Object.keys(byAcct).find(d => d.toLowerCase() === typed);
     if (!desc) { acctMsg.textContent = "No account matches \"" + acctInput.value + "\"."; return; }
     chosen.splice(0, chosen.length, desc);
-    acctTitle.textContent = desc;
-    acctTitle.hidden = false;
     acctInput.value = "";
     renderAccount(selectedFYs());
   }
