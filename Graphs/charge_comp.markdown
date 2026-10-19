@@ -217,6 +217,36 @@ title:  "Charge Comparison"
   let allFYs = [];
   const colorFor = fy => PALETTE[allFYs.indexOf(fy) % PALETTE.length];
 
+  // Download a PNG that includes value labels, units and a title. The export is drawn
+  // in an off-screen chart so the on-screen chart never flickers.
+  async function savePngWithValues(gd, title, filename) {
+    const W = 1100, H = 650;
+    const tmp = document.createElement("div");
+    tmp.style.cssText = "position:fixed; left:-10000px; top:0; width:" + W + "px; height:" + H + "px;";
+    document.body.append(tmp);
+    try {
+      const exportData = gd.data.map((trace, i) => Object.assign({}, trace, {
+        mode: "lines+markers+text",
+        texttemplate: "%{y:$,.0f}",
+        textposition: i % 2 ? "bottom center" : "top center"
+      }));
+      const exportLayout = Object.assign({}, gd.layout, {
+        width: W,
+        height: H,
+        title: { text: title },
+        paper_bgcolor: "#ffffff",
+        margin: { t: 60, r: 24, b: 80, l: 80 },
+        xaxis: Object.assign({}, gd.layout.xaxis, { title: { text: "Month (fiscal year, Jul - Jun)" } }),
+        yaxis: Object.assign({}, gd.layout.yaxis, { title: { text: chargeLabel() + " (USD)" } })
+      });
+      await Plotly.newPlot(tmp, exportData, exportLayout, { staticPlot: true });
+      await Plotly.downloadImage(tmp, { format: "png", width: W, height: H, scale: 2, filename: filename });
+    } finally {
+      Plotly.purge(tmp);
+      tmp.remove();
+    }
+  }
+
   // Draw one line per entry in series ([{ name, vals, color }]) into the given element.
   function drawLines(el, series) {
    // dark mode looks weird
@@ -247,7 +277,22 @@ title:  "Charge Comparison"
       legend: { orientation: "h", y: -0.12 },
       xaxis: { categoryorder: "array", categoryarray: MONTHS, gridcolor: grid, fixedrange: true },
       yaxis: { title: chargeLabel(), tickprefix: "$", rangemode: "tozero", gridcolor: grid, fixedrange: true }
-    }, { responsive: true, displaylogo: false });
+    }, {
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ["toImage"],
+      modeBarButtonsToAdd: [{
+        name: "Download PNG with values",
+        title: "Download PNG with values",
+        icon: Plotly.Icons.camera,
+        click: gd => {
+          const title = el === acctEl && !acctUsageHeading.hidden
+            ? acctUsageHeading.textContent
+            : "Monthly " + chargeLabel() + " For All Accounts";
+          return savePngWithValues(gd, title, title.replace(/[^\w]+/g, "_"));
+        }
+      }]
+    });
   }
 
   // The single account selected for the monthly charges chart.
