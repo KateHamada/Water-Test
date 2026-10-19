@@ -6,6 +6,7 @@ layout: home
 ---
 
 {% include quick-links.html %}
+{% include table-export.html %}
 
 <div><strong>STARS Filter</strong></div>
 <div id="stars-filter">

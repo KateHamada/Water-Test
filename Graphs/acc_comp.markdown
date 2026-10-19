@@ -56,6 +56,7 @@ title:  "Account Comparison"
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
 {% include quick-links.html %}
+{% include table-export.html %}
 
 <h3 id="usage-heading">Account Water Usage Comparison</h3>
 <div id="fy-float">

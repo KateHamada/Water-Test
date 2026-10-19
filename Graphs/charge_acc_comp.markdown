@@ -66,6 +66,7 @@ title:  "Account Charge Comparison"
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 
 {% include quick-links.html %}
+{% include table-export.html %}
 
 <div id="charge-type-control">
   <div><strong>Charge Type</strong></div>

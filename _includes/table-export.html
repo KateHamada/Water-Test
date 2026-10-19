@@ -1,0 +1,41 @@
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  // Adds a "Download Excel" button above every <table> on the page. Tables are often
+  // refilled by the page's own scripts, so the table is read when the button is clicked.
+  (() => {
+    const clean = s => (s || "").replace(/\s+/g, " ").trim();
+
+    function nameFor(table) {
+      let node = table.closest("details");
+      const summary = node && node.querySelector("summary");
+      let heading = null;
+      for (let el = (node || table).previousElementSibling; el && !heading; el = el.previousElementSibling) {
+        if (/^H[1-6]$/.test(el.tagName) && clean(el.textContent)) heading = clean(el.textContent);
+      }
+      const base = heading || (summary && clean(summary.textContent)) || table.id || "Table";
+      return base.replace(/[\\\/?*\[\]:]/g, "").slice(0, 31) || "Table";
+    }
+
+    function download(table) {
+      if (!table.rows.length) { alert("There is no data in this table yet."); return; }
+      const sheet = nameFor(table);
+      const wb = XLSX.utils.table_to_book(table, { sheet: sheet });
+      XLSX.writeFile(wb, sheet.replace(/[^\w]+/g, "_") + ".xlsx");
+    }
+
+    function addButtons() {
+      document.querySelectorAll("table").forEach(table => {
+        if (table.dataset.xlsxButton) return;
+        table.dataset.xlsxButton = "1";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "Download Excel";
+        btn.addEventListener("click", () => download(table));
+        table.before(btn);
+      });
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", addButtons);
+    else addButtons();
+  })();
+</script>
